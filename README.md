@@ -85,10 +85,10 @@ console.log(perm.data);
     {
       "moduleKey": "profiles",
       "policies": [
-        { "name": "Read", "action": "read", "conditions": "*", "position": "row" },
-        { "name": "Create", "action": "create", "conditions": "*", "position": "header" },
-        { "name": "Update", "action": "update", "conditions": "*", "position": "row" },
-        { "name": "Delete", "action": "delete", "conditions": "*", "position": "row" }
+        { "name": "Read", "action": "read", "conditions": "*" },
+        { "name": "Create", "action": "create", "conditions": "*" },
+        { "name": "Update", "action": "update", "conditions": "*" },
+        { "name": "Delete", "action": "delete", "conditions": "*" }
       ]
     }
     // ...
