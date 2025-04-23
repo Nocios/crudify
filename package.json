@@ -1,0 +1,56 @@
+{
+  "name": "@nocios/crudify",
+  "version": "1.0.0",
+  "description": "Lightweight JS SDK for Crudify GraphQL API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "start": "npm run build && ts-node test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nocios/crudify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nocios/crudify/issues"
+  },
+  "homepage": "https://github.com/nocios/crudify#readme",
+  "keywords": [
+    "nocios",
+    "crudify",
+    "crud",
+    "api",
+    "typescript",
+    "sdk"
+  ],
+  "author": "Nocios",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "axios": "^1.8.4"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2",
+    "dotenv": "^16.5.0",
+    "undici-types": "^7.5.0"
+  }
+}
