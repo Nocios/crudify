@@ -1,12 +1,14 @@
 # Welcome
 
-Welcome to **Crudify**, the lightweight JavaScript SDK for interacting with the Crudify GraphQL API. With this library, you can easily perform authentication, permission checks, and all CRUD operations (Create, Read, Update, Delete) as well as transactional batch operations against your serverless backend.
+Welcome to **Crudify**, the lightweight JavaScript SDK from [Crudify.io](https://crudify.io) for interacting with the Crudify GraphQL API. This library lets you easily perform authentication, permission checks, and all CRUD operations (Create, Read, Update, Delete), as well as transactional batch operations against your serverless backend.
 
-Key features:
+For full documentation and advanced guides, visit our docs at [https://crudify.io/docs](https://crudify.io/docs).
+
+## Key Features
 
 - Simple, chainable API
-- Built‑in authentication and token handling
-- Single‑call GraphQL mutations and queries
+- Built-in authentication and token handling
+- Single-call GraphQL mutations and queries
 - Transaction support for batched operations
 - Configurable log levels (`none`, `debug`)
 
@@ -15,6 +17,8 @@ Key features:
 - **Success (no warnings):** operation completed without warnings; all fields processed correctly.
 - **Success (with warnings):** operation succeeded but some fields generated warnings; review the `fieldsWarning` array.
 - **Failure:** operation failed; check the `errors` object for validation or processing errors.
+
+---
 
 # Getting Started
 
@@ -28,7 +32,7 @@ npm install @nocios/crudify
 
 ## Initialization
 
-Import and initialize the SDK with your **public API key** and optional log level:
+Import and initialize the SDK with your **public API key** (available at [https://crudify.io](https://crudify.io)) and optional log level:
 
 ```ts
 import crudify from "@nocios/crudify";
@@ -144,19 +148,6 @@ Fetch a single record by its `_id`.
 const res = await crudify.readItem("users", { _id: "5f8f8c44b54764421b7156c7" });
 ```
 
-**Sample Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "_id": "5f8f8c44b54764421b7156c7",
-    "name": "Alice",
-    "email": "alice@example.com"
-  }
-}
-```
-
 ---
 
 ## Read Multiple Items
@@ -169,18 +160,6 @@ Query multiple records with optional filters, sort, pagination, etc.
 ```ts
 // Example: fetch all users
 const res = await crudify.readItems("users", {});
-```
-
-**Sample Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    { "_id": "...", "name": "Alice", "email": "alice@example.com" },
-    { "_id": "...", "name": "Bob", "email": "bob@example.com" }
-  ]
-}
 ```
 
 ---
@@ -197,12 +176,6 @@ const update = { _id: "...", name: "Alice Smith" };
 const res = await crudify.updateItem("users", update);
 ```
 
-**Sample Response:**
-
-```json
-{ "success": true, "data": { "_id": "...", "name": "Alice Smith" } }
-```
-
 ---
 
 ## Delete Item
@@ -214,12 +187,6 @@ Remove a record by its `_id`.
 
 ```ts
 const res = await crudify.deleteItem("users", { _id: "..." });
-```
-
-**Sample Response:**
-
-```json
-{ "success": true, "data": null }
 ```
 
 ---
@@ -238,34 +205,21 @@ Execute multiple operations in a single atomic batch. Each item in the `data` ar
 ```ts
 const batch = [
   { operation: "create", moduleKey: "users", data: { name: "Carol" } },
-  { operation: "update", moduleKey: "users", data: { _id: "...", name: "Carol Lee" } },
+  { operation: "update", moduleKey": "users", data: { _id: "...", name: "Carol Lee" } },
   { operation: "delete", moduleKey: "users", data: { _id: "..." } },
 ];
 const res = await crudify.transaction(batch);
-```
-
-**Sample Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    { "operation": "create", "response": { "status": "OK", "data": { ... } } },
-    { "operation": "update", "response": { "status": "OK", "data": { ... } } },
-    { "operation": "delete", "response": { "status": "OK" } }
-  ]
-}
 ```
 
 ---
 
 # Field Validations
 
-Below is a list of common field validation rules enforced by the SDK (via server‑side Zod schemas). Each rule returns a specific error code when validation fails.
+Below is a list of common field validation rules enforced by the SDK (via server-side Zod schemas). Each rule returns a specific error code when validation fails.
 
 | Rule             | Description                                                     | Error Code                           |
 | ---------------- | --------------------------------------------------------------- | ------------------------------------ |
-| `required`       | Field must be present and non‑empty                             | `REQUIRED`                           |
+| `required`       | Field must be present and non-empty                             | `REQUIRED`                           |
 | `email`          | Field must be a valid email address                             | `INVALID_EMAIL`                      |
 | `noSpace`        | Field must not contain whitespace                               | `NO_SPACES`                          |
 | `min[x]`         | Numeric field must be ≥ x                                       | `MIN_x`                              |
@@ -274,11 +228,9 @@ Below is a list of common field validation rules enforced by the SDK (via server
 | `maxlength[x]`   | String length must be ≤ x characters                            | `MAX_x_CHARACTERS`                   |
 | `objectId`       | Must be a valid MongoDB ObjectId                                | `INVALID_OBJECT_ID`                  |
 | `in[...]`        | String must be one of the provided values                       | `INVALID_VALUE_MUST_BE_ONE_OF_[...]` |
-| `foreign:Module` | Must reference an existing non‑deleted item in `Module`         | `FOREIGN_KEY_NOT_FOUND_<FIELD>`      |
+| `foreign:Module` | Must reference an existing non-deleted item in `Module`         | `FOREIGN_KEY_NOT_FOUND_<FIELD>`      |
 | `unique:Module`  | Value must be unique within `Module` (excluding current record) | `DUPLICATE_<FIELD>`                  |
 | `optional`       | Field is not required                                           | (no error on missing field)          |
-
-For array rules (`minarray[x]`, `maxarray[x]`, `foreign:Module`, `unique:Module`), the same error codes apply at the array level.
 
 ---
 
@@ -296,91 +248,13 @@ For array rules (`minarray[x]`, `maxarray[x]`, `foreign:Module`, `unique:Module`
 }
 ```
 
-**Successful with warnings:**
-
-```js
-{
-  success: true,
-  data: { /* created record */ },
-  fieldsWarning: [ 'password' ]
-}
-```
-
-**Failure (validation errors):**
-
-```js
-{
-  success: false,
-  errors: {
-    email: ['DUPLICATE_EMAIL'],
-    name: ['REQUIRED']
-  }
-}
-```
-
-### Update Item
-
-**Successful (no warnings):**
-
-```js
-{
-  success: true,
-  data: { /* updated record */ },
-  fieldsWarning: null
-}
-```
-
-**Successful with warnings:**
-
-```js
-{
-  success: true,
-  data: { /* updated record */ },
-  fieldsWarning: [ 'password' ]
-}
-```
-
-**Failure (validation errors):**
-
-```js
-{
-  success: false,
-  errors: {
-    name: ['REQUIRED'],
-    email: ['DUPLICATE_EMAIL']
-  }
-}
-```
-
-### Delete Item
-
-Deletion is a soft‑delete; always returns success unless the provided `_id` is invalid.
-
-```js
-// Non‑existent or already deleted
-{ success: true, data: null, fieldsWarning: null }
-
-// Invalid ObjectId
-{ success: false, errors: { _id: ['INVALID_OBJECT_ID'] } }
-```
-
 ---
 
 # FAQ
 
-**Q:** _What is **`publicApiKey`** vs. **`apiKey`**?_
-
+**Q:** _What is **`publicApiKey`** vs. **`apiKey`**?_  
 **A:** `publicApiKey` is your subscriber-level credential, set via `init()`. Internally the library uses a fixed GraphQL API key (`apiKey`) to sign requests; you never need to configure it manually.
-
-**Q:** _How do I change log levels?_  
-Pass the optional `logLevel` parameter to `init()`: `none` or `debug`.
-
-**Q:** _Can I use custom headers?_  
-All methods accept no extra header parameters. For advanced use cases, fork the library and modify the `executeQuery` method.
-
-**Q:** _What happens if one operation fails in a transaction?_  
-By design, the server attempts atomic execution and rolls back on failure. Check the `data` array in the response for per-operation statuses.
 
 ---
 
-For more details and advanced usage, visit the [Crudify API reference](https://api.crudify.io/graphql).
+For more details and advanced usage, visit our docs at [https://crudify.io/docs](https://crudify.io/docs).
