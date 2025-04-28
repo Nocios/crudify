@@ -3,6 +3,9 @@ dist/
 package-lock.json
 
 .env
+.env.dev
+.env.stg
+.env.prod
 
 test.ts
 

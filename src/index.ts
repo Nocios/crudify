@@ -3,8 +3,8 @@ type LogLevel = "none" | "debug";
 type ResponseType = { success: boolean; data?: any; fieldsWarning?: any; errors?: any };
 
 const mutationLogin = `
-mutation MyMutation($email: String!, $password: String!) {
-  response:login(email: $email, password: $password) {
+mutation MyMutation($username: String, $email: String, $password: String!) {
+  response:login(username: $username, email: $email, password: $password) {
     data
     status
     fieldsWarning
@@ -143,8 +143,11 @@ class Crudify {
     }
   };
 
-  public login = async (email: string, password: string): Promise<ResponseType> => {
-    const response = await this.executeQuery(mutationLogin, { email, password }, { "x-api-key": this.apiKey });
+  public login = async (identifier: string, password: string): Promise<ResponseType> => {
+    const email: string | undefined = identifier.includes("@") ? identifier : undefined;
+    const username: string | undefined = identifier.includes("@") ? undefined : identifier;
+
+    const response = await this.executeQuery(mutationLogin, { username, email, password }, { "x-api-key": this.apiKey });
 
     if (response.data?.response?.status === "OK") this.token = response.data.response.data.replace(/^"+|"+$/g, "");
 

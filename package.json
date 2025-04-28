@@ -12,8 +12,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
-    "start": "npm run build && ts-node test.ts"
+    "start": "dotenv -e .env.dev -- ts-node test.ts",
+    "start:stg": "dotenv -e .env.stg -- ts-node test.ts",
+    "prepublishOnly": "dotenv -e .env.prod -- npm run build"
   },
   "repository": {
     "type": "git",
@@ -48,9 +49,10 @@
     "axios": "^1.8.4"
   },
   "devDependencies": {
+    "dotenv": "^16.5.0",
+    "dotenv-cli": "^8.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
-    "dotenv": "^16.5.0",
     "undici-types": "^7.5.0"
   }
 }
