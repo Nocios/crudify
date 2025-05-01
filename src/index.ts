@@ -110,6 +110,8 @@ class Crudify {
   };
 
   private formatErrors = (issues: Issue[]): Record<string, string[]> => {
+    if (this.logLevel === "debug") console.log("Issues:", issues);
+
     return issues.reduce((acc, issue) => {
       const key = String(issue.path[0] ?? "_");
       if (!acc[key]) acc[key] = [];
