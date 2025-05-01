@@ -160,6 +160,11 @@ class Crudify {
     return formatedResponse;
   };
 
+  public logout = async (): Promise<ResponseType> => {
+    this.token = "";
+    return { success: true };
+  };
+
   public getPermissions = async (): Promise<ResponseType> => {
     const response = await this.executeQuery(queryGetPermissions, {}, { Authorization: `Bearer ${this.token}` });
 
