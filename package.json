@@ -14,6 +14,9 @@
     "build": "tsc",
     "start": "dotenv -e .env.dev -- ts-node test.ts",
     "start:stg": "dotenv -e .env.stg -- ts-node test.ts",
+    "start:stg:coco": "dotenv -e .env.stg -- ts-node test.coco.ts",
+    "start:stg:lucas": "dotenv -e .env.stg -- ts-node test.lucas.ts",
+    "start:stg:fer": "dotenv -e .env.stg -- ts-node test.fer.ts",
     "prepublishOnly": "dotenv -e .env.prod -- npm run build"
   },
   "repository": {
