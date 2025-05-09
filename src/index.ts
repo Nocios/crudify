@@ -140,6 +140,20 @@ class Crudify {
         return { success: true, data: dataResponse, fieldsWarning: response.data.response.fieldsWarning };
       case "FIELD_ERROR":
         return { success: false, errors: this.formatErrors(dataResponse) };
+      case "ITEM_NOT_FOUND":
+        return { success: false, errors: { _id: ["ITEM_NOT_FOUND"] } };
+      case "ERROR": {
+        if (Array.isArray(dataResponse)) {
+          const formatted = (dataResponse as any[]).map(({ action, response: opRes }) => {
+            if (opRes.status === "FIELD_ERROR") {
+              return { action, status: opRes.status, errors: this.formatErrors(opRes.errors as Issue[]) };
+            }
+            return { action, status: opRes.status };
+          });
+          return { success: false, data: formatted };
+        }
+        return { success: false, errors: dataResponse };
+      }
       default:
         return { success: false, errors: { _error: [status] } };
     }
