@@ -285,6 +285,10 @@ class Crudify {
     if (!Crudify.instance) Crudify.instance = new Crudify();
     return Crudify.instance;
   }
+
+  public async shutdown() {
+    await dispatcher.close();
+  }
 }
 
 export default Crudify.getInstance();
