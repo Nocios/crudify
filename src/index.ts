@@ -1,3 +1,16 @@
+import { Agent, fetch as undiciFetch } from "undici";
+import CacheableLookup from "cacheable-lookup";
+import type { LookupFunction } from "net";
+
+const cacheable = new CacheableLookup({ maxTtl: 300_000, fallbackDuration: 30_000 });
+
+const dispatcher = new Agent({
+  keepAliveTimeout: 60_000,
+  connections: 10,
+  pipelining: 1,
+  connect: { lookup: cacheable.lookup as unknown as LookupFunction },
+});
+
 type LogLevel = "none" | "debug";
 
 type ResponseType = { success: boolean; data?: any; fieldsWarning?: any; errors?: any };
@@ -256,10 +269,11 @@ class Crudify {
       ...extraHeaders,
     };
 
-    const response = await fetch(this.endpoint, {
+    const response = await undiciFetch(this.endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({ query, variables }),
+      dispatcher,
     });
 
     const data: any = await response.json();
