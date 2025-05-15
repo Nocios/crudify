@@ -13,9 +13,9 @@
   },
   "scripts": {
     "build": "tsup",
-    "start": "dotenv -e .env.dev -- ts-node test.ts",
-    "start:stg": "dotenv -e .env.stg -- ts-node test.ts",
-    "prepublishOnly": "dotenv -e .env.prod -- npm run build"
+    "start": "dotenv -e .env -- ts-node test.ts",
+    "start:stg": "dotenv -e .env -- ts-node test.ts",
+    "prepublishOnly": "dotenv -e .env -- npm run build"
   },
   "repository": {
     "type": "git",

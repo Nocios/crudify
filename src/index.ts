@@ -111,10 +111,18 @@ type Issue = {
   message: string;
 };
 
+type EnvType = "dev" | "stg" | "api";
+
+const dataMasters = {
+  dev: { ApiMetadata: process.env.CRUDIFY_METADATA_API_DEV, ApiKeyMetadata: process.env.CRUDIFY_METADATA_API_KEY_DEV },
+  stg: { ApiMetadata: process.env.CRUDIFY_METADATA_API_STG, ApiKeyMetadata: process.env.CRUDIFY_METADATA_API_KEY_STG },
+  api: { ApiMetadata: process.env.CRUDIFY_METADATA_API_PROD, ApiKeyMetadata: process.env.CRUDIFY_METADATA_API_KEY_PROD },
+};
+
 class Crudify {
   private static instance: Crudify;
-  private static readonly ApiMetadata = process.env.CRUDIFY_METADATA_API || "";
-  private static readonly ApiKeyMetadata = process.env.CRUDIFY_METADATA_API_KEY || "";
+  private static ApiMetadata = dataMasters.api.ApiMetadata || "https://auth.api.crudify.io";
+  private static ApiKeyMetadata = dataMasters.api.ApiKeyMetadata || "da2-5hhytgms6nfxnlvcowd6crsvea";
 
   private publicApiKey: string = "";
   private token: string = "";
@@ -125,9 +133,9 @@ class Crudify {
 
   private constructor() {}
 
-  public config = (endpoint: string, apiKey: string): void => {
-    this.endpoint = endpoint;
-    this.apiKey = apiKey;
+  public config = (env: EnvType): void => {
+    Crudify.ApiMetadata = dataMasters[env].ApiMetadata || dataMasters.api.ApiMetadata || "https://auth.api.crudify.io";
+    Crudify.ApiKeyMetadata = dataMasters[env].ApiKeyMetadata || dataMasters.api.ApiKeyMetadata || "da2-5hhytgms6nfxnlvcowd6crsvea";
   };
 
   public init = async (publicApiKey: string, logLevel?: LogLevel): Promise<void> => {
