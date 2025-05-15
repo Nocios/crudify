@@ -1,6 +1,9 @@
 import { Agent, fetch as undiciFetch } from "undici";
 import CacheableLookup from "cacheable-lookup";
 import type { LookupFunction } from "net";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const cacheable = new CacheableLookup({ maxTtl: 300_000, fallbackDuration: 30_000 });
 
@@ -14,6 +17,14 @@ const dispatcher = new Agent({
 type LogLevel = "none" | "debug";
 
 type ResponseType = { success: boolean; data?: any; fieldsWarning?: any; errors?: any };
+
+const queryInit = `
+query Init($apiKey: String!) {
+  response:init(apiKey: $apiKey) {
+    apiEndpoint
+    apiKeyEndpoint
+  }
+}`;
 
 const mutationLogin = `
 mutation MyMutation($username: String, $email: String, $password: String!) {
@@ -102,6 +113,9 @@ type Issue = {
 
 class Crudify {
   private static instance: Crudify;
+  private static readonly ApiMetadata = process.env.CRUDIFY_METADATA_API || "";
+  private static readonly ApiKeyMetadata = process.env.CRUDIFY_METADATA_API_KEY || "";
+
   private publicApiKey: string = "";
   private token: string = "";
 
@@ -116,10 +130,30 @@ class Crudify {
     this.apiKey = apiKey;
   };
 
-  public init = (publicApiKey: string, logLevel?: LogLevel): void => {
-    this.logLevel = logLevel || "debug";
+  public init = async (publicApiKey: string, logLevel?: LogLevel): Promise<void> => {
+    this.logLevel = logLevel || "none";
     this.publicApiKey = publicApiKey;
-    this.token = "NO_TOKEN";
+    this.token = "";
+
+    const response = await undiciFetch(Crudify.ApiMetadata, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": Crudify.ApiKeyMetadata },
+      body: JSON.stringify({ query: queryInit, variables: { apiKey: publicApiKey } }),
+      dispatcher,
+    });
+
+    const data: any = await response.json();
+
+    if (logLevel === "debug") console.log("Init response:", data);
+
+    if (data?.data?.response) {
+      const { response } = data.data;
+      this.endpoint = response.apiEndpoint;
+      this.apiKey = response.apiKeyEndpoint;
+    } else {
+      console.error("Init response error");
+      throw new Error("Failed to initialize Crudify, check your API key");
+    }
   };
 
   private formatErrors = (issues: Issue[]): Record<string, string[]> => {
@@ -134,8 +168,6 @@ class Crudify {
   };
 
   private formatResponse = (response: any): ResponseType => {
-    if (this.logLevel === "debug") console.log("Response:", response);
-
     if (response.errors) return { success: false, errors: response.errors };
 
     const status = response.data.response.status ?? "Unknown";
@@ -144,7 +176,6 @@ class Crudify {
     if (this.logLevel === "debug") {
       console.log("Response:", response);
       console.log("Status:", status);
-      console.log("Data:", dataResponse);
     }
 
     switch (status) {
@@ -173,18 +204,25 @@ class Crudify {
   };
 
   public login = async (identifier: string, password: string): Promise<ResponseType> => {
-    const email: string | undefined = identifier.includes("@") ? identifier : undefined;
-    const username: string | undefined = identifier.includes("@") ? undefined : identifier;
+    if (!this.endpoint || !this.apiKey) throw new Error("Please call init() method first.");
+    else {
+      const email: string | undefined = identifier.includes("@") ? identifier : undefined;
+      const username: string | undefined = identifier.includes("@") ? undefined : identifier;
 
-    const response = await this.executeQuery(mutationLogin, { username, email, password }, { "x-api-key": this.apiKey });
+      const response = await this.executeQuery(mutationLogin, { username, email, password }, { "x-api-key": this.apiKey });
 
-    if (response.data?.response?.status === "OK") this.token = response.data.response.data.replace(/^"+|"+$/g, "");
+      if (response.data?.response?.status === "OK") {
+        const parsedData = JSON.parse(response.data.response.data);
+        this.token = parsedData.token;
+        if (this.logLevel === "debug") console.info("Version:", parsedData.version);
+      }
 
-    const formatedResponse = this.formatResponse(response);
-    delete formatedResponse.data;
-    delete formatedResponse.fieldsWarning;
+      const formatedResponse = this.formatResponse(response);
+      delete formatedResponse.data;
+      delete formatedResponse.fieldsWarning;
 
-    return formatedResponse;
+      return formatedResponse;
+    }
   };
 
   public logout = async (): Promise<ResponseType> => {
@@ -268,6 +306,8 @@ class Crudify {
       "x-subscriber-key": this.publicApiKey,
       ...extraHeaders,
     };
+
+    if (this.logLevel === "debug") console.log("Headers:", headers);
 
     const response = await undiciFetch(this.endpoint, {
       method: "POST",

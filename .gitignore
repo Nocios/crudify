@@ -8,6 +8,7 @@ package-lock.json
 .env.prod
 
 test.ts
+test.old.ts
 test.coco.ts
 test.lucas.ts
 test.fer.ts
