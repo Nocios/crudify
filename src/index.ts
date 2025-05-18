@@ -15,6 +15,14 @@ type LogLevel = "none" | "debug";
 
 type ResponseType = { success: boolean; data?: any; fieldsWarning?: any; errors?: any };
 
+const queryInit = `
+query Init($apiKey: String!) {
+  response:init(apiKey: $apiKey) {
+    apiEndpoint
+    apiKeyEndpoint
+  }
+}`;
+
 const mutationLogin = `
 mutation MyMutation($username: String, $email: String, $password: String!) {
   response:login(username: $username, email: $email, password: $password) {
@@ -100,8 +108,19 @@ type Issue = {
   message: string;
 };
 
+type EnvType = "dev" | "stg" | "api";
+
+const dataMasters = {
+  dev: { ApiMetadata: "https://auth.dev.crudify.io", ApiKeyMetadata: "da2-pl3xidupjnfwjiykpbp75gx344" },
+  stg: { ApiMetadata: "https://auth.stg.crudify.io", ApiKeyMetadata: "da2-hooybwpxirfozegx3v4f3kaelq" },
+  api: { ApiMetadata: "https://auth.api.crudify.io", ApiKeyMetadata: "da2-5hhytgms6nfxnlvcowd6crsvea" },
+};
+
 class Crudify {
   private static instance: Crudify;
+  private static ApiMetadata = dataMasters.api.ApiMetadata || "https://auth.api.crudify.io";
+  private static ApiKeyMetadata = dataMasters.api.ApiKeyMetadata || "da2-5hhytgms6nfxnlvcowd6crsvea";
+
   private publicApiKey: string = "";
   private token: string = "";
 
@@ -111,15 +130,39 @@ class Crudify {
 
   private constructor() {}
 
-  public config = (endpoint: string, apiKey: string): void => {
-    this.endpoint = endpoint;
-    this.apiKey = apiKey;
+  public config = (env: EnvType): void => {
+    Crudify.ApiMetadata = dataMasters[env].ApiMetadata || dataMasters.api.ApiMetadata || "https://auth.api.crudify.io";
+    Crudify.ApiKeyMetadata = dataMasters[env].ApiKeyMetadata || dataMasters.api.ApiKeyMetadata || "da2-5hhytgms6nfxnlvcowd6crsvea";
   };
 
-  public init = (publicApiKey: string, logLevel?: LogLevel): void => {
-    this.logLevel = logLevel || "debug";
+  public init = async (publicApiKey: string, logLevel?: LogLevel): Promise<void> => {
+    this.logLevel = logLevel || "none";
     this.publicApiKey = publicApiKey;
-    this.token = "NO_TOKEN";
+    this.token = "";
+
+    const response = await undiciFetch(Crudify.ApiMetadata, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": Crudify.ApiKeyMetadata },
+      body: JSON.stringify({ query: queryInit, variables: { apiKey: publicApiKey } }),
+      dispatcher,
+    });
+
+    const data: any = await response.json();
+
+    if (logLevel === "debug") {
+      console.log("Init response:", data);
+      console.log("Crudify:", Crudify.ApiMetadata);
+      console.log("Crudify:", Crudify.ApiKeyMetadata);
+    }
+
+    if (data?.data?.response) {
+      const { response } = data.data;
+      this.endpoint = response.apiEndpoint;
+      this.apiKey = response.apiKeyEndpoint;
+    } else {
+      console.error("Init response error");
+      throw new Error("Failed to initialize Crudify, check your API key");
+    }
   };
 
   private formatErrors = (issues: Issue[]): Record<string, string[]> => {
@@ -134,8 +177,6 @@ class Crudify {
   };
 
   private formatResponse = (response: any): ResponseType => {
-    if (this.logLevel === "debug") console.log("Response:", response);
-
     if (response.errors) return { success: false, errors: response.errors };
 
     const status = response.data.response.status ?? "Unknown";
@@ -144,7 +185,6 @@ class Crudify {
     if (this.logLevel === "debug") {
       console.log("Response:", response);
       console.log("Status:", status);
-      console.log("Data:", dataResponse);
     }
 
     switch (status) {
@@ -173,18 +213,25 @@ class Crudify {
   };
 
   public login = async (identifier: string, password: string): Promise<ResponseType> => {
-    const email: string | undefined = identifier.includes("@") ? identifier : undefined;
-    const username: string | undefined = identifier.includes("@") ? undefined : identifier;
+    if (!this.endpoint || !this.apiKey) throw new Error("Please call init() method first.");
+    else {
+      const email: string | undefined = identifier.includes("@") ? identifier : undefined;
+      const username: string | undefined = identifier.includes("@") ? undefined : identifier;
 
-    const response = await this.executeQuery(mutationLogin, { username, email, password }, { "x-api-key": this.apiKey });
+      const response = await this.executeQuery(mutationLogin, { username, email, password }, { "x-api-key": this.apiKey });
 
-    if (response.data?.response?.status === "OK") this.token = response.data.response.data.replace(/^"+|"+$/g, "");
+      if (response.data?.response?.status === "OK") {
+        const parsedData = JSON.parse(response.data.response.data);
+        this.token = parsedData.token;
+        if (this.logLevel === "debug") console.info("Version:", parsedData.version);
+      }
 
-    const formatedResponse = this.formatResponse(response);
-    delete formatedResponse.data;
-    delete formatedResponse.fieldsWarning;
+      const formatedResponse = this.formatResponse(response);
+      delete formatedResponse.data;
+      delete formatedResponse.fieldsWarning;
 
-    return formatedResponse;
+      return formatedResponse;
+    }
   };
 
   public logout = async (): Promise<ResponseType> => {
@@ -268,6 +315,8 @@ class Crudify {
       "x-subscriber-key": this.publicApiKey,
       ...extraHeaders,
     };
+
+    if (this.logLevel === "debug") console.log("Headers:", headers);
 
     const response = await undiciFetch(this.endpoint, {
       method: "POST",
