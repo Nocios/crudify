@@ -1,9 +1,6 @@
 import { Agent, fetch as undiciFetch } from "undici";
 import CacheableLookup from "cacheable-lookup";
 import type { LookupFunction } from "net";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const cacheable = new CacheableLookup({ maxTtl: 300_000, fallbackDuration: 30_000 });
 
@@ -114,9 +111,9 @@ type Issue = {
 type EnvType = "dev" | "stg" | "api";
 
 const dataMasters = {
-  dev: { ApiMetadata: process.env.CRUDIFY_METADATA_API_DEV, ApiKeyMetadata: process.env.CRUDIFY_METADATA_API_KEY_DEV },
-  stg: { ApiMetadata: process.env.CRUDIFY_METADATA_API_STG, ApiKeyMetadata: process.env.CRUDIFY_METADATA_API_KEY_STG },
-  api: { ApiMetadata: process.env.CRUDIFY_METADATA_API_PROD, ApiKeyMetadata: process.env.CRUDIFY_METADATA_API_KEY_PROD },
+  dev: { ApiMetadata: "https://auth.dev.crudify.io", ApiKeyMetadata: "da2-pl3xidupjnfwjiykpbp75gx344" },
+  stg: { ApiMetadata: "https://auth.stg.crudify.io", ApiKeyMetadata: "da2-hooybwpxirfozegx3v4f3kaelq" },
+  api: { ApiMetadata: "https://auth.api.crudify.io", ApiKeyMetadata: "da2-5hhytgms6nfxnlvcowd6crsvea" },
 };
 
 class Crudify {
@@ -152,7 +149,11 @@ class Crudify {
 
     const data: any = await response.json();
 
-    if (logLevel === "debug") console.log("Init response:", data);
+    if (logLevel === "debug") {
+      console.log("Init response:", data);
+      console.log("Crudify:", Crudify.ApiMetadata);
+      console.log("Crudify:", Crudify.ApiKeyMetadata);
+    }
 
     if (data?.data?.response) {
       const { response } = data.data;
