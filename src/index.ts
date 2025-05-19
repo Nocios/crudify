@@ -124,7 +124,7 @@ class Crudify {
   private publicApiKey: string = "";
   private token: string = "";
 
-  private logLevel: LogLevel = "debug";
+  private logLevel: LogLevel = "none";
   private apiKey: string = "";
   private endpoint: string = "";
 
