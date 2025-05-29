@@ -278,7 +278,8 @@ class Crudify {
   };
 
   private formatResponse = (response: any): ResponseType => {
-    if (response.errors) return { success: false, errors: response.errors };
+    if (response.errors)
+      return { success: false, errors: response.errors.map((err: any) => err.message || "UNKNOWN_ERROR") as Record<string, string[]> };
 
     if (!response.data || !response.data.response) {
       if (this.logLevel === "debug") {
@@ -360,74 +361,71 @@ class Crudify {
   };
 
   public getPermissions = async (): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
-    const response = await this.executeQuery(queryGetPermissions, {}, { Authorization: `Bearer ${this.token}` });
+    const response = await this.executeQuery(
+      queryGetPermissions,
+      {},
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
+    );
     return this.formatResponse(response);
   };
 
   public createItem = async (moduleKey: string, data: any): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
     const response = await this.executeQuery(
       mutationCreateItem,
       { moduleKey, data: JSON.stringify(data) },
-      { Authorization: `Bearer ${this.token}` }
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
     );
     return this.formatResponse(response);
   };
 
   public readItem = async (moduleKey: string, data: { _id: string }): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
     const response = await this.executeQuery(
       queryReadItem,
       { moduleKey, data: JSON.stringify(data) },
-      { Authorization: `Bearer ${this.token}` }
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
     );
     return this.formatResponse(response);
   };
 
   public readItems = async (moduleKey: string, data: any): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
     const response = await this.executeQuery(
       queryReadItems,
       { moduleKey, data: JSON.stringify(data) },
-      { Authorization: `Bearer ${this.token}` }
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
     );
     return this.formatResponse(response);
   };
 
   public updateItem = async (moduleKey: string, data: any): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
     const response = await this.executeQuery(
       mutationUpdateItem,
       { moduleKey, data: JSON.stringify(data) },
-      { Authorization: `Bearer ${this.token}` }
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
     );
     return this.formatResponse(response);
   };
 
   public deleteItem = async (moduleKey: string, data: { _id: string }): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
     const response = await this.executeQuery(
       mutationDeleteItem,
       { moduleKey, data: JSON.stringify(data) },
-      { Authorization: `Bearer ${this.token}` }
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
     );
     return this.formatResponse(response);
   };
 
   public transaction = async (data: any): Promise<ResponseType> => {
-    if (!this.token) return { success: false, errors: { _auth: ["NOT_LOGGED_IN"] } };
     const response = await this.executeQuery(
       mutationTransaction,
       { data: JSON.stringify(data) },
-      { Authorization: `Bearer ${this.token}` }
+      { ...(!this.token ? { "x-api-key": this.apiKey } : { Authorization: `Bearer ${this.token}` }) }
     );
     return this.formatResponse(response);
   };
 
   private executeQuery = async (query: string, variables = {}, extraHeaders: { [key: string]: string }) => {
     if (!this.endpoint || !this.apiKey) {
-      throw new Error("Crudify is not properly initialized. Missing endpoint or internal API key.");
+      throw new Error("Crudify is not properly initialized. Missing api key.");
     }
 
     const headers: Record<string, string> = {
