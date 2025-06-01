@@ -7,6 +7,7 @@ import type {
 } from "undici";
 import type CacheableLookupClassType from "cacheable-lookup";
 import type { LookupFunction as NetLookupFunction } from "net";
+import { CrudifyLogLevel } from "./types";
 
 export const IS_BROWSER = typeof window !== "undefined" && typeof window.document !== "undefined";
 

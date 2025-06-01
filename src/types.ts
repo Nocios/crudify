@@ -1,18 +1,16 @@
-// src/types/global.d.ts
-
 /**
  * Defines the logging level for Crudify operations.
  * 'none': No logs will be output.
  * 'debug': Detailed logs for requests, responses, and internal processes will be output.
  */
-type CrudifyLogLevel = "none" | "debug";
+export type CrudifyLogLevel = "none" | "debug";
 
 /**
  * Represents the structure of an issue or error, typically for field-level errors.
  */
-type CrudifyIssue = {
-  path: Array<string | number>; // Path to the field causing the issue
-  message: string; // Error message
+export type CrudifyIssue = {
+  path: Array<string | number>;
+  message: string;
 };
 
 /**
@@ -22,31 +20,30 @@ type CrudifyIssue = {
  * 'api': Production environment (or a general API endpoint).
  * 'prod': Production environment (or a general API endpoint).
  */
-type CrudifyEnvType = "dev" | "stg" | "api" | "prod";
+export type CrudifyEnvType = "dev" | "stg" | "api" | "prod";
 
 /**
  * Represents a JSON string, typically used for data payloads in AWS services or GraphQL.
  */
-type CrudifyAWSJSON = string;
+export type CrudifyAWSJSON = string;
 
 /**
  * Defines the structure of the public-facing response from Crudify SDK methods.
  */
-type CrudifyResponse = {
-  success: boolean; // Indicates if the operation was successful.
-  data?: object | any | null; // Data returned by the operation. Using 'any' for flexibility from 'object | null'.
-  errors?: string[]; // An array of error messages if the operation failed or had issues.
-  // This is simplified from more complex internal error structures.
+export type CrudifyResponse = {
+  success: boolean;
+  data?: object | any | null;
+  errors?: string[];
 };
 
 /**
  * Internal representation of a response within Crudify, potentially more detailed.
  */
-type InternalCrudifyResponseType = {
+export type InternalCrudifyResponseType = {
   success: boolean;
   data?: any;
   fieldsWarning?: any;
-  errors?: any; // Can be Record<string, string[]>, { _error: string[] }, etc.
+  errors?: any;
 };
 
 /**
@@ -54,7 +51,7 @@ type InternalCrudifyResponseType = {
  * This is for documentation and understanding; tsup will generate the actual
  * module interface from the Crudify class implementation.
  */
-interface CrudifyPublicAPI {
+export interface CrudifyPublicAPI {
   getLogLevel: () => CrudifyLogLevel;
   config: (env: CrudifyEnvType) => void;
   init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<void>;
@@ -62,10 +59,10 @@ interface CrudifyPublicAPI {
   logout: () => Promise<CrudifyResponse>;
   getPermissions: () => Promise<CrudifyResponse>;
   createItem: (moduleKey: string, data: object) => Promise<CrudifyResponse>;
-  readItem: (moduleKey: string, filter: { _id: string } | object) => Promise<CrudifyResponse>; // Made filter more generic
+  readItem: (moduleKey: string, filter: { _id: string } | object) => Promise<CrudifyResponse>;
   readItems: (moduleKey: string, filter: object) => Promise<CrudifyResponse>;
   updateItem: (moduleKey: string, data: object) => Promise<CrudifyResponse>;
-  deleteItem: (moduleKey: string, id: string) => Promise<CrudifyResponse>; // Aligned with user's desired signature
+  deleteItem: (moduleKey: string, id: string) => Promise<CrudifyResponse>;
   transaction: (data: any) => Promise<CrudifyResponse>;
   shutdown: () => Promise<void>;
 }
