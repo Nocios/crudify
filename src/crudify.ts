@@ -1,4 +1,4 @@
-import { _fetch, shutdownNodeSpecifics, IS_BROWSER, getInternalNodeSpecificsSetupPromise } from "./isomorphic-fetch";
+import { _fetch, shutdownNodeSpecifics, IS_BROWSER, getInternalNodeSpecificsSetupPromise } from "./fetch-wrapper";
 import { CrudifyEnvType, CrudifyIssue, CrudifyLogLevel, CrudifyPublicAPI, CrudifyResponse, InternalCrudifyResponseType } from "./types";
 
 const queryInit = `

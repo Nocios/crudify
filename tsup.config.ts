@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: ["src/index.ts", "src/fetch-wrapper.ts", "src/fetch-browser-impl.ts"],
   format: ["cjs", "esm"],
   dts: true,
   splitting: false,

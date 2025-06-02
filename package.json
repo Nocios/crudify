@@ -1,15 +1,20 @@
 {
   "name": "@nocios/crudify",
-  "version": "1.1.356",
+  "version": "1.1.358",
   "description": "Lightweight JS SDK for Crudify GraphQL API",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }
+  },
+  "browser": {
+    "./dist/fetch-wrapper.mjs": "./dist/fetch-browser-impl.mjs",
+    "./dist/fetch-wrapper.js": "./dist/fetch-browser-impl.js"
   },
   "scripts": {
     "build": "tsup",
