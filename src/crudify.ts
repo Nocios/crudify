@@ -1,4 +1,4 @@
-import { _fetch, shutdownNodeSpecifics, IS_BROWSER, getInternalNodeSpecificsSetupPromise } from "./fetch-wrapper";
+import { _fetch, shutdownNodeSpecifics, IS_BROWSER, getInternalNodeSpecificsSetupPromise } from "./fetch-impl";
 import { CrudifyEnvType, CrudifyIssue, CrudifyLogLevel, CrudifyPublicAPI, CrudifyResponse, InternalCrudifyResponseType } from "./types";
 
 const queryInit = `
@@ -115,7 +115,7 @@ class Crudify implements CrudifyPublicAPI {
   };
 
   public config = (env: CrudifyEnvType): void => {
-    const selectedEnv = env || "api"; // Default to api if env is not valid
+    const selectedEnv = env || "api";
     Crudify.ApiMetadata = dataMasters[selectedEnv]?.ApiMetadata || dataMasters.api.ApiMetadata;
     Crudify.ApiKeyMetadata = dataMasters[selectedEnv]?.ApiKeyMetadata || dataMasters.api.ApiKeyMetadata;
   };
@@ -124,17 +124,6 @@ class Crudify implements CrudifyPublicAPI {
     this.logLevel = logLevel || "none";
     this.publicApiKey = publicApiKey;
     this.token = "";
-
-    if (this.logLevel === "debug" && !IS_BROWSER) {
-      const nodePromise = getInternalNodeSpecificsSetupPromise();
-      if (nodePromise) {
-        nodePromise
-          .then(() => console.log("Crudify: Node-specific modules confirmed initialized during Crudify init."))
-          .catch((err) =>
-            console.error("Crudify: Error during Node-specific module initialization check during Crudify init:", err.message)
-          );
-      }
-    }
 
     const response = await _fetch(Crudify.ApiMetadata, {
       method: "POST",
@@ -147,8 +136,6 @@ class Crudify implements CrudifyPublicAPI {
     if (this.logLevel === "debug") {
       console.log("Crudify Init Response:", data);
       console.log("Crudify Metadata URL:", Crudify.ApiMetadata);
-      if (!IS_BROWSER) console.log("Crudify: Running in Node.js environment.");
-      else console.log("Crudify: Running in Browser environment.");
     }
 
     if (data?.data?.response) {
@@ -385,13 +372,6 @@ class Crudify implements CrudifyPublicAPI {
   public async shutdown() {
     if (this.logLevel === "debug") console.log("Crudify: Initiating shutdown...");
     await shutdownNodeSpecifics(this.logLevel);
-    if (this.logLevel === "debug") {
-      if (IS_BROWSER) {
-        console.log("Crudify Shutdown: No specific Node.js resources to release in browser (isomorphic-fetch handled).");
-      } else {
-        console.log("Crudify Shutdown: Node.js specific resources release attempted (via isomorphic-fetch).");
-      }
-    }
   }
 }
 
