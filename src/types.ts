@@ -57,6 +57,7 @@ export interface CrudifyPublicAPI {
   init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<void>;
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
+  isLogin: () => boolean;
   getPermissions: () => Promise<CrudifyResponse>;
   createItem: (moduleKey: string, data: object) => Promise<CrudifyResponse>;
   readItem: (moduleKey: string, filter: { _id: string } | object) => Promise<CrudifyResponse>;

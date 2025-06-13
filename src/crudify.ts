@@ -160,9 +160,8 @@ class Crudify implements CrudifyPublicAPI {
 
   private formatResponseInternal = (response: any): InternalCrudifyResponseType => {
     if (response.errors) {
-      // GraphQL level errors
       const errorMessages = response.errors.map((err: any) => String(err.message || "UNKNOWN_GRAPHQL_ERROR"));
-      return { success: false, errors: { _graphql: errorMessages } }; // Standardize GraphQL errors
+      return { success: false, errors: { _graphql: errorMessages } };
     }
 
     if (!response.data || !response.data.response) {
@@ -179,10 +178,9 @@ class Crudify implements CrudifyPublicAPI {
     } catch (e) {
       if (this.logLevel === "debug") console.error("Crudify FormatResponse: Failed to parse data", apiResponse.data, e);
       if (status === "OK" || status === "WARNING") {
-        // If status was OK/Warning but data parsing failed, it's an error.
         return { success: false, errors: { _error: ["INVALID_DATA_FORMAT_IN_SUCCESSFUL_RESPONSE"] } };
       }
-      dataResponse = { _raw: apiResponse.data, _parsingError: (e as Error).message }; // Keep raw data if parsing fails on error status
+      dataResponse = { _raw: apiResponse.data, _parsingError: (e as Error).message };
     }
 
     if (this.logLevel === "debug") {
@@ -200,10 +198,9 @@ class Crudify implements CrudifyPublicAPI {
         return { success: false, errors: { _id: ["ITEM_NOT_FOUND"] } };
       case "ERROR":
         if (Array.isArray(dataResponse)) {
-          // For transactions
           const formattedTransaction = dataResponse.map(({ action, response: opRes }) => {
             let opData = null;
-            let opErrors: any = opRes.errors; // Default to original errors
+            let opErrors: any = opRes.errors;
             try {
               opData = opRes.data ? JSON.parse(opRes.data) : null;
             } catch (e) {
@@ -216,7 +213,7 @@ class Crudify implements CrudifyPublicAPI {
           });
           return { success: false, data: formattedTransaction, errors: { _transaction_errors: ["One or more operations failed"] } };
         }
-        return { success: false, errors: dataResponse }; // Raw error data from API
+        return { success: false, errors: dataResponse };
       default:
         return { success: false, errors: { _error: [status || "UNKNOWN_ERROR_STATUS"] } };
     }
@@ -228,10 +225,9 @@ class Crudify implements CrudifyPublicAPI {
     if (internalResp.errors) {
       const collectedErrors: string[] = [];
       if (Array.isArray(internalResp.errors)) {
-        // Typically direct string arrays or array of error objects
         internalResp.errors.forEach((err) => {
           if (typeof err === "string") collectedErrors.push(err);
-          else if (err && typeof err.message === "string") collectedErrors.push(err.message); // For GraphQL like error objects
+          else if (err && typeof err.message === "string") collectedErrors.push(err.message);
         });
       } else if (typeof internalResp.errors === "object") {
         Object.values(internalResp.errors).forEach((val) => {
@@ -250,7 +246,6 @@ class Crudify implements CrudifyPublicAPI {
       if (collectedErrors.length > 0) {
         publicErrors = collectedErrors;
       } else if (Object.keys(internalResp.errors).length > 0 && collectedErrors.length === 0) {
-        // If there were errors but couldn't be mapped, provide a generic message
         publicErrors = ["An error occurred. Check logs for details."];
         if (this.logLevel === "debug") console.warn("Crudify AdaptToPublicResponse: Unmapped errors:", internalResp.errors);
       }
@@ -258,7 +253,7 @@ class Crudify implements CrudifyPublicAPI {
 
     return {
       success: internalResp.success,
-      data: internalResp.data, // Keep data as 'any' from internal for now, matches CrudifyResponse.data?: any
+      data: internalResp.data,
       errors: publicErrors,
     };
   };
@@ -281,17 +276,13 @@ class Crudify implements CrudifyPublicAPI {
     const internalResponse = this.formatResponseInternal(rawResponse);
 
     if (internalResponse.success && internalResponse.data?.token) {
-      this.token = internalResponse.data.token;
+      this.token = internalResponse.data.token; // Se establece el token
       if (this.logLevel === "debug" && internalResponse.data?.version) {
         console.info("Crudify Login Version:", internalResponse.data.version);
       }
     }
-    // The public response should not contain the token or version directly in `data` for login
-    // The `adaptToPublicResponse` will handle the general structure.
-    // For login, success itself indicates token is stored.
     const publicResponse = this.adaptToPublicResponse(internalResponse);
     if (publicResponse.success) {
-      // For login, data field is not typically returned or should be empty/status object
       publicResponse.data = { loginStatus: "successful" };
     }
     return publicResponse;
@@ -299,8 +290,10 @@ class Crudify implements CrudifyPublicAPI {
 
   public logout = async (): Promise<CrudifyResponse> => {
     this.token = "";
-    return { success: true }; // No server interaction, simple success
+    return { success: true };
   };
+
+  public isLogin = (): boolean => !!this.token;
 
   public getPermissions = async (): Promise<CrudifyResponse> => {
     return this.performCrudOperation(queryGetPermissions, {});
@@ -323,24 +316,21 @@ class Crudify implements CrudifyPublicAPI {
   };
 
   public deleteItem = async (moduleKey: string, id: string): Promise<CrudifyResponse> => {
-    // Aligned with user's desired (model: string, id: string) -> (moduleKey: string, id: string)
     return this.performCrudOperation(mutationDeleteItem, { moduleKey, data: JSON.stringify({ _id: id }) });
   };
 
   public transaction = async (data: any): Promise<CrudifyResponse> => {
-    // Data for transaction is typically an array of operations
     return this.performCrudOperation(mutationTransaction, { data: JSON.stringify(data) });
   };
 
   private executeQuery = async (query: string, variables: object = {}, extraHeaders: { [key: string]: string } = {}) => {
     if (!this.endpoint) {
-      // Only check endpoint, apiKey is part of headers or token
       throw new Error("Crudify: Not properly initialized or endpoint missing. Call init() method first.");
     }
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "x-subscriber-key": this.publicApiKey, // Assuming publicApiKey is the subscriber key
+      "x-subscriber-key": this.publicApiKey,
       ...extraHeaders,
     };
 
