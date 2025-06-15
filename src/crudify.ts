@@ -1,5 +1,13 @@
 import { _fetch, shutdownNodeSpecifics } from "./fetch-impl";
-import { CrudifyEnvType, CrudifyIssue, CrudifyLogLevel, CrudifyPublicAPI, CrudifyResponse, InternalCrudifyResponseType } from "./types";
+import {
+  CrudifyEnvType,
+  CrudifyIssue,
+  CrudifyLogLevel,
+  CrudifyPublicAPI,
+  CrudifyResponse,
+  InternalCrudifyResponseType,
+  CrudifyRequestOptions,
+} from "./types";
 
 const queryInit = `
 query Init($apiKey: String!) {
@@ -96,10 +104,6 @@ const dataMasters = {
   prod: { ApiMetadata: "https://auth.api.crudify.io", ApiKeyMetadata: "da2-5hhytgms6nfxnlvcowd6crsvea" },
 };
 
-type CrudifyRequestOptions = {
-  signal?: AbortSignal;
-};
-
 class Crudify implements CrudifyPublicAPI {
   private static instance: Crudify;
   private static ApiMetadata = dataMasters.api.ApiMetadata;
@@ -155,7 +159,7 @@ class Crudify implements CrudifyPublicAPI {
   private formatErrorsInternal = (issues: CrudifyIssue[]): Record<string, string[]> => {
     if (this.logLevel === "debug") console.log("Crudify FormatErrors Issues:", issues);
     return issues.reduce((acc, issue) => {
-      const key = String(issue.path[0] ?? "_");
+      const key = String(issue.path[0] ?? "_error");
       if (!acc[key]) acc[key] = [];
       acc[key].push(issue.message.toUpperCase());
       return acc;
@@ -215,50 +219,32 @@ class Crudify implements CrudifyPublicAPI {
             }
             return { action, status: opRes.status, data: opData, errors: opErrors, fieldsWarning: opRes.fieldsWarning };
           });
-          return { success: false, data: formattedTransaction, errors: { _transaction_errors: ["One or more operations failed"] } };
+          return { success: false, data: formattedTransaction, errors: { _transaction: ["ONE_OR_MORE_OPERATIONS_FAILED"] } };
         }
-        return { success: false, errors: dataResponse };
+        const finalErrors =
+          typeof dataResponse === "object" && dataResponse !== null && !Array.isArray(dataResponse)
+            ? dataResponse
+            : { _error: [String(dataResponse || "UNKNOWN_ERROR")] };
+        return { success: false, errors: finalErrors };
       default:
         return { success: false, errors: { _error: [status || "UNKNOWN_ERROR_STATUS"] } };
     }
   };
 
   private adaptToPublicResponse = (internalResp: InternalCrudifyResponseType): CrudifyResponse => {
-    let publicErrors: string[] | undefined = undefined;
-
-    if (internalResp.errors) {
-      const collectedErrors: string[] = [];
-      if (Array.isArray(internalResp.errors)) {
-        internalResp.errors.forEach((err) => {
-          if (typeof err === "string") collectedErrors.push(err);
-          else if (err && typeof err.message === "string") collectedErrors.push(err.message);
-        });
-      } else if (typeof internalResp.errors === "object") {
-        Object.values(internalResp.errors).forEach((val) => {
-          if (Array.isArray(val)) {
-            val.forEach((item) => {
-              if (typeof item === "string") collectedErrors.push(item);
-            });
-          } else if (typeof val === "string") {
-            collectedErrors.push(val);
-          }
-        });
-      } else if (typeof internalResp.errors === "string") {
-        collectedErrors.push(internalResp.errors);
-      }
-
-      if (collectedErrors.length > 0) {
-        publicErrors = collectedErrors;
-      } else if (Object.keys(internalResp.errors).length > 0 && collectedErrors.length === 0) {
-        publicErrors = ["An error occurred. Check logs for details."];
-        if (this.logLevel === "debug") console.warn("Crudify AdaptToPublicResponse: Unmapped errors:", internalResp.errors);
-      }
+    if (internalResp.errors && typeof internalResp.errors === "object" && !Array.isArray(internalResp.errors)) {
+      return {
+        success: internalResp.success,
+        data: internalResp.data,
+        errors: internalResp.errors,
+        fieldsWarning: internalResp.fieldsWarning,
+      };
     }
 
     return {
       success: internalResp.success,
       data: internalResp.data,
-      errors: publicErrors,
+      fieldsWarning: internalResp.fieldsWarning,
     };
   };
 
@@ -293,23 +279,31 @@ class Crudify implements CrudifyPublicAPI {
       ...extraHeaders,
     };
 
-    // ... (lógica de logging sin cambios)
+    if (this.logLevel === "debug") {
+      console.log("Crudify Request URL:", this.endpoint);
+      console.log("Crudify Request Headers:", headers);
+      console.log("Crudify Request Query:", query);
+      console.log("Crudify Request Variables:", variables);
+    }
 
     const response = await _fetch(this.endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({ query, variables }),
-      signal, // <-- MODIFICADO: Se añade el signal a la petición fetch
+      signal,
     });
 
-    // ... (lógica de logging sin cambios)
-    return await response.json();
+    const responseBody = await response.json();
+
+    if (this.logLevel === "debug") {
+      console.log("Crudify Response Status:", response.status);
+      console.log("Crudify Response Body:", responseBody);
+    }
+
+    return responseBody;
   };
 
-  // --- MÉTODOS PÚBLICOS DE DATOS (MODIFICADOS) ---
-
   public login = async (identifier: string, password: string): Promise<CrudifyResponse> => {
-    // La cancelación en el login no suele ser necesaria, pero se podría añadir si se quisiera
     if (!this.endpoint || !this.apiKey) throw new Error("Crudify: Not initialized. Call init() first.");
 
     const email: string | undefined = identifier.includes("@") ? identifier : undefined;

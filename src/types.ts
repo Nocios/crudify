@@ -28,12 +28,22 @@ export type CrudifyEnvType = "dev" | "stg" | "api" | "prod";
 export type CrudifyAWSJSON = string;
 
 /**
+ * A type representing a structured object of field-level validation errors.
+ * The key is the field name, and the value is an array of error messages for that field.
+ * @example { "email": ["INVALID_EMAIL"], "password": ["MIN_8_CHARACTERS"] }
+ */
+export type CrudifyFieldErrors = {
+  [key: string]: string[];
+};
+
+/**
  * Defines the structure of the public-facing response from Crudify SDK methods.
  */
 export type CrudifyResponse = {
   success: boolean;
-  data?: object | any | null;
-  errors?: string[];
+  data?: any;
+  errors?: CrudifyFieldErrors;
+  fieldsWarning?: any;
 };
 
 /**
@@ -42,8 +52,8 @@ export type CrudifyResponse = {
 export type InternalCrudifyResponseType = {
   success: boolean;
   data?: any;
+  errors?: CrudifyFieldErrors | any;
   fieldsWarning?: any;
-  errors?: any;
 };
 
 /**
@@ -58,12 +68,16 @@ export interface CrudifyPublicAPI {
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
-  getPermissions: () => Promise<CrudifyResponse>;
-  createItem: (moduleKey: string, data: object) => Promise<CrudifyResponse>;
-  readItem: (moduleKey: string, filter: { _id: string } | object) => Promise<CrudifyResponse>;
-  readItems: (moduleKey: string, filter: object) => Promise<CrudifyResponse>;
-  updateItem: (moduleKey: string, data: object) => Promise<CrudifyResponse>;
-  deleteItem: (moduleKey: string, id: string) => Promise<CrudifyResponse>;
-  transaction: (data: any) => Promise<CrudifyResponse>;
+  getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  createItem: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  readItem: (moduleKey: string, filter: { _id: string } | object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  readItems: (moduleKey: string, filter: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  updateItem: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  deleteItem: (moduleKey: string, id: string, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  transaction: (data: any, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   shutdown: () => Promise<void>;
 }
+
+export type CrudifyRequestOptions = {
+  signal?: AbortSignal;
+};
