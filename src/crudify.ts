@@ -319,10 +319,12 @@ class Crudify implements CrudifyPublicAPI {
       }
     }
     const publicResponse = this.adaptToPublicResponse(internalResponse);
-    if (publicResponse.success) {
-      publicResponse.data = { loginStatus: "successful" };
-    }
+    if (publicResponse.success) publicResponse.data = { loginStatus: "successful", token: this.token };
     return publicResponse;
+  };
+
+  public setToken = (token: string): void => {
+    if (typeof token === "string" && token) this.token = token;
   };
 
   public logout = async (): Promise<CrudifyResponse> => {
