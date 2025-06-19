@@ -169,7 +169,10 @@ class Crudify implements CrudifyPublicAPI {
   private formatResponseInternal = (response: any): InternalCrudifyResponseType => {
     if (response.errors) {
       const errorMessages = response.errors.map((err: any) => String(err.message || "UNKNOWN_GRAPHQL_ERROR"));
-      return { success: false, errors: { _graphql: errorMessages } };
+      return {
+        success: false,
+        errors: { _graphql: errorMessages.map((x: string) => x.toUpperCase().replace(/ /g, "_").replace(/\./g, "")) },
+      };
     }
 
     if (!response.data || !response.data.response) {
