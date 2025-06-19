@@ -37,6 +37,16 @@ query MyQuery {
 }
 `;
 
+const queryGetStructure = `
+query MyQuery {
+  response:getStructure {
+    data
+    status
+    fieldsWarning
+  }
+}
+`;
+
 const mutationCreateItem = `
 mutation MyMutation($moduleKey: String!, $data: AWSJSON) {
   response:createItem(moduleKey: $moduleKey, data: $data) {
@@ -339,6 +349,10 @@ class Crudify implements CrudifyPublicAPI {
 
   public getPermissions = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
     return this.performCrudOperation(queryGetPermissions, {}, options);
+  };
+
+  public getStructure = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
+    return this.performCrudOperation(queryGetStructure, {}, options);
   };
 
   public createItem = async (moduleKey: string, data: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
