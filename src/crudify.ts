@@ -276,6 +276,8 @@ class Crudify implements CrudifyPublicAPI {
       options?.signal
     );
 
+    if (this.logLevel === "debug") console.log("Crudify Raw Response:", rawResponse);
+
     if (this.responseInterceptor) rawResponse = await Promise.resolve(this.responseInterceptor(rawResponse));
 
     return this.adaptToPublicResponse(this.formatResponseInternal(rawResponse));
@@ -393,10 +395,10 @@ class Crudify implements CrudifyPublicAPI {
     return Crudify.instance;
   }
 
-  public setResponseInterceptor(interceptor: CrudifyResponseInterceptor | null): void {
+  public setResponseInterceptor = (interceptor: CrudifyResponseInterceptor | null): void => {
     if (this.logLevel === "debug") console.log("Crudify: setResponseInterceptor called");
     this.responseInterceptor = interceptor;
-  }
+  };
 
   public async shutdown() {
     if (this.logLevel === "debug") console.log("Crudify: Initiating shutdown...");

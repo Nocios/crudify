@@ -1,6 +1,6 @@
 {
   "name": "@nocios/crudify-browser",
-  "version": "1.0.71",
+  "version": "1.0.76",
   "description": "Browser-specific Lightweight JS SDK for Crudify GraphQL API",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
