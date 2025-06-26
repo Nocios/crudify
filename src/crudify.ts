@@ -7,6 +7,8 @@ import {
   CrudifyResponse,
   InternalCrudifyResponseType,
   CrudifyRequestOptions,
+  CrudifyResponseInterceptor,
+  RawGraphQLResponse,
 } from "./types";
 
 const queryInit = `
@@ -125,6 +127,7 @@ class Crudify implements CrudifyPublicAPI {
   private logLevel: CrudifyLogLevel = "none";
   private apiKey: string = "";
   private endpoint: string = "";
+  private responseInterceptor: CrudifyResponseInterceptor | null = null;
 
   private constructor() {}
 
@@ -264,7 +267,7 @@ class Crudify implements CrudifyPublicAPI {
   private async performCrudOperation(query: string, variables: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> {
     if (!this.endpoint || !this.apiKey) throw new Error("Crudify: Not initialized. Call init() first.");
 
-    const rawResponse = await this.executeQuery(
+    let rawResponse: RawGraphQLResponse = await this.executeQuery(
       query,
       variables,
       {
@@ -272,6 +275,8 @@ class Crudify implements CrudifyPublicAPI {
       },
       options?.signal
     );
+
+    if (this.responseInterceptor) rawResponse = await Promise.resolve(this.responseInterceptor(rawResponse));
 
     return this.adaptToPublicResponse(this.formatResponseInternal(rawResponse));
   }
@@ -386,6 +391,11 @@ class Crudify implements CrudifyPublicAPI {
   public static getInstance(): Crudify {
     if (!Crudify.instance) Crudify.instance = new Crudify();
     return Crudify.instance;
+  }
+
+  public setResponseInterceptor(interceptor: CrudifyResponseInterceptor | null): void {
+    if (this.logLevel === "debug") console.log("Crudify: setResponseInterceptor called");
+    this.responseInterceptor = interceptor;
   }
 
   public async shutdown() {

@@ -56,6 +56,13 @@ export type InternalCrudifyResponseType = {
   fieldsWarning?: any;
 };
 
+export interface RawGraphQLResponse {
+  data?: any;
+  errors?: any[];
+}
+
+export type CrudifyResponseInterceptor = (response: RawGraphQLResponse) => RawGraphQLResponse | Promise<RawGraphQLResponse>;
+
 /**
  * Describes the public interface of the Crudify client instance.
  * This is for documentation and understanding; tsup will generate the actual
@@ -75,6 +82,7 @@ export interface CrudifyPublicAPI {
   updateItem: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   deleteItem: (moduleKey: string, id: string, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   transaction: (data: any, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  setResponseInterceptor: (interceptor: CrudifyResponseInterceptor | null) => void;
   shutdown: () => Promise<void>;
 }
 
