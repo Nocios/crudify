@@ -174,7 +174,7 @@ class Crudify implements CrudifyPublicAPI {
     return issues.reduce((acc, issue) => {
       const key = String(issue.path[0] ?? "_error");
       if (!acc[key]) acc[key] = [];
-      acc[key].push(issue.message.toUpperCase());
+      acc[key].push(issue.message);
       return acc;
     }, {} as Record<string, string[]>);
   };
