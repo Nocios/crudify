@@ -382,6 +382,10 @@ class Crudify implements CrudifyPublicAPI {
     return this.performCrudOperation(mutationCreateItem, { moduleKey, data: JSON.stringify(data) }, options);
   };
 
+  public createItemPublic = async (moduleKey: string, data: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
+    return this.performCrudOperationPublic(mutationCreateItem, { moduleKey, data: JSON.stringify(data) }, options);
+  };
+
   public readItem = async (
     moduleKey: string,
     filter: { _id: string } | object,
