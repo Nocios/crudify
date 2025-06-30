@@ -283,6 +283,18 @@ class Crudify implements CrudifyPublicAPI {
     return this.adaptToPublicResponse(this.formatResponseInternal(rawResponse));
   }
 
+  private async performCrudOperationPublic(query: string, variables: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> {
+    if (!this.endpoint || !this.apiKey) throw new Error("Crudify: Not initialized. Call init() first.");
+
+    let rawResponse: RawGraphQLResponse = await this.executeQuery(query, variables, { "x-api-key": this.apiKey }, options?.signal);
+
+    if (this.logLevel === "debug") console.log("Crudify Raw Response:", rawResponse);
+
+    if (this.responseInterceptor) rawResponse = await Promise.resolve(this.responseInterceptor(rawResponse));
+
+    return this.adaptToPublicResponse(this.formatResponseInternal(rawResponse));
+  }
+
   private executeQuery = async (
     query: string,
     variables: object = {},
@@ -360,6 +372,10 @@ class Crudify implements CrudifyPublicAPI {
 
   public getStructure = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
     return this.performCrudOperation(queryGetStructure, {}, options);
+  };
+
+  public getStructurePublic = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
+    return this.performCrudOperationPublic(queryGetStructure, {}, options);
   };
 
   public createItem = async (moduleKey: string, data: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {

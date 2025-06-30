@@ -76,6 +76,8 @@ export interface CrudifyPublicAPI {
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  getStructure: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  getStructurePublic: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   createItem: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   readItem: (moduleKey: string, filter: { _id: string } | object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   readItems: (moduleKey: string, filter: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
