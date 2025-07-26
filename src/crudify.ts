@@ -109,6 +109,16 @@ mutation MyMutation($data: AWSJSON) {
 }
 `;
 
+const queryGenerateSignedUrl = `
+query MyQuery($data: AWSJSON) {
+  response:generateSignedUrl(data: $data) {
+    data
+    status
+    fieldsWarning
+  }
+}
+`;
+
 const dataMasters = {
   dev: { ApiMetadata: "https://auth.dev.crudify.io", ApiKeyMetadata: "da2-pl3xidupjnfwjiykpbp75gx344" },
   stg: { ApiMetadata: "https://auth.stg.crudify.io", ApiKeyMetadata: "da2-hooybwpxirfozegx3v4f3kaelq" },
@@ -384,6 +394,25 @@ class Crudify implements CrudifyPublicAPI {
 
   public createItemPublic = async (moduleKey: string, data: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
     return this.performCrudOperationPublic(mutationCreateItem, { moduleKey, data: JSON.stringify(data) }, options);
+  };
+
+  public generateSignedUrl = async (
+    data: { fileName: string; contentType: string },
+    options?: CrudifyRequestOptions
+  ): Promise<CrudifyResponse> => {
+    if (!this.endpoint || !this.token) throw new Error("Crudify: Not initialized. Call init() first.");
+
+    const rawResponse = await this.executeQuery(
+      queryGenerateSignedUrl,
+      { data: JSON.stringify(data) },
+      { Authorization: `Bearer ${this.token}` },
+      options?.signal
+    );
+    const internalResponse = this.formatResponseInternal(rawResponse);
+
+    if (internalResponse.success && internalResponse.data?.url) return { success: true, data: internalResponse.data.url };
+
+    return this.adaptToPublicResponse(internalResponse);
   };
 
   public readItem = async (
