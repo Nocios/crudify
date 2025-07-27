@@ -231,22 +231,25 @@ class Crudify implements CrudifyPublicAPI {
       case "ITEM_NOT_FOUND":
         return { success: false, errors: { _id: ["ITEM_NOT_FOUND"] } };
       case "ERROR":
-        if (Array.isArray(dataResponse)) {
-          const formattedTransaction = dataResponse.map(({ action, response: opRes }) => {
-            let opData = null;
-            let opErrors: any = opRes.errors;
-            try {
-              opData = opRes.data ? JSON.parse(opRes.data) : null;
-            } catch (e) {
-              opData = { _raw: opRes.data, _parsingError: (e as Error).message };
-            }
-            if (opRes.status === "FIELD_ERROR" && opRes.errors) {
-              opErrors = this.formatErrorsInternal(opRes.errors as CrudifyIssue[]);
-            }
-            return { action, status: opRes.status, data: opData, errors: opErrors, fieldsWarning: opRes.fieldsWarning };
-          });
-          return { success: false, data: formattedTransaction, errors: { _transaction: ["ONE_OR_MORE_OPERATIONS_FAILED"] } };
-        }
+        if (Array.isArray(dataResponse))
+          return { success: false, data: dataResponse, errors: { _transaction: ["ONE_OR_MORE_OPERATIONS_FAILED"] } };
+        // if (Array.isArray(dataResponse)) {
+        //   const formattedTransaction = dataResponse.map(({ action, response: opRes }) => {
+        //     let opData = null;
+        //     let opErrors: any = opRes.errors;
+        //     try {
+        //       opData = opRes.data ? JSON.parse(opRes.data) : null;
+        //     } catch (e) {
+        //       opData = { _raw: opRes.data, _parsingError: (e as Error).message };
+        //     }
+        //     if (opRes.status === "FIELD_ERROR" && opRes.errors) {
+        //       opErrors = this.formatErrorsInternal(opRes.errors as CrudifyIssue[]);
+        //     }
+        //     return { action, status: opRes.status, data: opData, errors: opErrors, fieldsWarning: opRes.fieldsWarning };
+        //   });
+        //   return { success: false, data: formattedTransaction, errors: { _transaction: ["ONE_OR_MORE_OPERATIONS_FAILED"] } };
+        // }
+
         const finalErrors =
           typeof dataResponse === "object" && dataResponse !== null && !Array.isArray(dataResponse)
             ? dataResponse
