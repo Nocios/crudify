@@ -2,6 +2,8 @@
   "name": "@nocios/crudify-browser",
   "version": "1.0.81",
   "description": "Browser-specific Lightweight JS SDK for Crudify GraphQL API",
+  "author": "Nocios",
+  "license": "MIT",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -34,13 +36,11 @@
     "sdk",
     "browser"
   ],
-  "author": "Nocios",
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
-  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
