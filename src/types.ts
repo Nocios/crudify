@@ -6,6 +6,46 @@
 export type CrudifyLogLevel = "none" | "debug";
 
 /**
+ * Enum for standardized error codes from crudify-core
+ */
+export enum NociosError {
+  // Authentication errors
+  InvalidCredentials = "INVALID_CREDENTIALS",
+  InvalidApiKey = "INVALID_API_KEY", 
+  Unauthorized = "UNAUTHORIZED",
+  
+  // User/Subscriber errors
+  SubscriberNotFound = "SUBSCRIBER_NOT_FOUND",
+  SubscriberNotActive = "SUBSCRIBER_NOT_ACTIVE",
+  UserNotFound = "USER_NOT_FOUND",
+  UserNotActive = "USER_NOT_ACTIVE",
+  ProfileNotFound = "PROFILE_NOT_FOUND",
+  ProfileNotActive = "PROFILE_NOT_ACTIVE",
+  
+  // Configuration errors
+  InvalidConfiguration = "INVALID_CONFIGURATION",
+  
+  // Request errors
+  BadRequest = "BAD_REQUEST",
+  NotFound = "NOT_FOUND",
+  InUse = "IN_USE",
+  NoPermission = "NO_PERMISSION",
+  
+  // System errors
+  InternalServerError = "INTERNAL_SERVER_ERROR",
+  DatabaseConnectionError = "DATABASE_CONNECTION_ERROR",
+  
+  // Validation errors
+  FieldError = "FIELD_ERROR",
+  
+  // Operation errors
+  UnknownOperation = "UNKNOWN_OPERATION",
+  NotExecuted = "NOT_EXECUTED",
+  NoActive = "NO_ACTIVE",
+  ItemNotFound = "ITEM_NOT_FOUND"
+}
+
+/**
  * Represents the structure of an issue or error, typically for field-level errors.
  */
 export type CrudifyIssue = {
@@ -44,6 +84,7 @@ export type CrudifyResponse = {
   data?: any;
   errors?: CrudifyFieldErrors;
   fieldsWarning?: any;
+  errorCode?: NociosError;
 };
 
 /**
@@ -54,6 +95,7 @@ export type InternalCrudifyResponseType = {
   data?: any;
   errors?: CrudifyFieldErrors | any;
   fieldsWarning?: any;
+  errorCode?: NociosError;
 };
 
 export interface RawGraphQLResponse {

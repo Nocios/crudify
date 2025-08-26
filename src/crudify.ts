@@ -9,6 +9,7 @@ import {
   CrudifyRequestOptions,
   CrudifyResponseInterceptor,
   RawGraphQLResponse,
+  NociosError,
 } from "./types";
 
 const queryInit = `
@@ -205,6 +206,7 @@ class Crudify implements CrudifyPublicAPI {
 
     const apiResponse = response.data.response;
     const status = apiResponse.status ?? "Unknown";
+    const errorCode = apiResponse.errorCode as NociosError | undefined;
     let dataResponse;
 
     try {
@@ -220,19 +222,20 @@ class Crudify implements CrudifyPublicAPI {
     if (this.logLevel === "debug") {
       console.log("Crudify FormatResponse Status:", status);
       console.log("Crudify FormatResponse Parsed Data (dataResponse):", dataResponse);
+      console.log("Crudify FormatResponse ErrorCode:", errorCode);
     }
 
     switch (status) {
       case "OK":
       case "WARNING":
-        return { success: true, data: dataResponse, fieldsWarning: apiResponse.fieldsWarning };
+        return { success: true, data: dataResponse, fieldsWarning: apiResponse.fieldsWarning, errorCode };
       case "FIELD_ERROR":
-        return { success: false, errors: this.formatErrorsInternal(dataResponse as CrudifyIssue[]) };
+        return { success: false, errors: this.formatErrorsInternal(dataResponse as CrudifyIssue[]), errorCode };
       case "ITEM_NOT_FOUND":
-        return { success: false, errors: { _id: ["ITEM_NOT_FOUND"] } };
+        return { success: false, errors: { _id: ["ITEM_NOT_FOUND"] }, errorCode: errorCode || NociosError.ItemNotFound };
       case "ERROR":
         if (Array.isArray(dataResponse))
-          return { success: false, data: dataResponse, errors: { _transaction: ["ONE_OR_MORE_OPERATIONS_FAILED"] } };
+          return { success: false, data: dataResponse, errors: { _transaction: ["ONE_OR_MORE_OPERATIONS_FAILED"] }, errorCode };
         // if (Array.isArray(dataResponse)) {
         //   const formattedTransaction = dataResponse.map(({ action, response: opRes }) => {
         //     let opData = null;
@@ -254,9 +257,9 @@ class Crudify implements CrudifyPublicAPI {
           typeof dataResponse === "object" && dataResponse !== null && !Array.isArray(dataResponse)
             ? dataResponse
             : { _error: [String(dataResponse || "UNKNOWN_ERROR")] };
-        return { success: false, errors: finalErrors };
+        return { success: false, errors: finalErrors, errorCode: errorCode || NociosError.InternalServerError };
       default:
-        return { success: false, errors: { _error: [status || "UNKNOWN_ERROR_STATUS"] } };
+        return { success: false, errors: { _error: [status || "UNKNOWN_ERROR_STATUS"] }, errorCode: errorCode || NociosError.InternalServerError };
     }
   };
 
@@ -267,6 +270,7 @@ class Crudify implements CrudifyPublicAPI {
         data: internalResp.data,
         errors: internalResp.errors,
         fieldsWarning: internalResp.fieldsWarning,
+        errorCode: internalResp.errorCode,
       };
     }
 
@@ -274,6 +278,7 @@ class Crudify implements CrudifyPublicAPI {
       success: internalResp.success,
       data: internalResp.data,
       fieldsWarning: internalResp.fieldsWarning,
+      errorCode: internalResp.errorCode,
     };
   };
 
