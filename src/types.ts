@@ -11,9 +11,9 @@ export type CrudifyLogLevel = "none" | "debug";
 export enum NociosError {
   // Authentication errors
   InvalidCredentials = "INVALID_CREDENTIALS",
-  InvalidApiKey = "INVALID_API_KEY", 
+  InvalidApiKey = "INVALID_API_KEY",
   Unauthorized = "UNAUTHORIZED",
-  
+
   // User/Subscriber errors
   SubscriberNotFound = "SUBSCRIBER_NOT_FOUND",
   SubscriberNotActive = "SUBSCRIBER_NOT_ACTIVE",
@@ -21,28 +21,28 @@ export enum NociosError {
   UserNotActive = "USER_NOT_ACTIVE",
   ProfileNotFound = "PROFILE_NOT_FOUND",
   ProfileNotActive = "PROFILE_NOT_ACTIVE",
-  
+
   // Configuration errors
   InvalidConfiguration = "INVALID_CONFIGURATION",
-  
+
   // Request errors
   BadRequest = "BAD_REQUEST",
   NotFound = "NOT_FOUND",
   InUse = "IN_USE",
   NoPermission = "NO_PERMISSION",
-  
+
   // System errors
   InternalServerError = "INTERNAL_SERVER_ERROR",
   DatabaseConnectionError = "DATABASE_CONNECTION_ERROR",
-  
+
   // Validation errors
   FieldError = "FIELD_ERROR",
-  
+
   // Operation errors
   UnknownOperation = "UNKNOWN_OPERATION",
   NotExecuted = "NOT_EXECUTED",
   NoActive = "NO_ACTIVE",
-  ItemNotFound = "ITEM_NOT_FOUND"
+  ItemNotFound = "ITEM_NOT_FOUND",
 }
 
 /**
@@ -115,6 +115,7 @@ export interface CrudifyPublicAPI {
   config: (env: CrudifyEnvType) => void;
   init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<void>;
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
+  loginWithSubdomain: (identifier: string, password: string, subdomain: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;

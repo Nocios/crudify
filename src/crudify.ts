@@ -21,8 +21,8 @@ query Init($apiKey: String!) {
 }`;
 
 const mutationLogin = `
-mutation MyMutation($username: String, $email: String, $password: String!) {
-  response:login(username: $username, email: $email, password: $password) {
+mutation MyMutation($username: String, $email: String, $password: String!, $subdomain: String) {
+  response:login(username: $username, email: $email, password: $password, subdomain: $subdomain) {
     data
     status
     fieldsWarning
@@ -259,7 +259,11 @@ class Crudify implements CrudifyPublicAPI {
             : { _error: [String(dataResponse || "UNKNOWN_ERROR")] };
         return { success: false, errors: finalErrors, errorCode: errorCode || NociosError.InternalServerError };
       default:
-        return { success: false, errors: { _error: [status || "UNKNOWN_ERROR_STATUS"] }, errorCode: errorCode || NociosError.InternalServerError };
+        return {
+          success: false,
+          errors: { _error: [status || "UNKNOWN_ERROR_STATUS"] },
+          errorCode: errorCode || NociosError.InternalServerError,
+        };
     }
   };
 
@@ -370,6 +374,83 @@ class Crudify implements CrudifyPublicAPI {
     }
     const publicResponse = this.adaptToPublicResponse(internalResponse);
     if (publicResponse.success) publicResponse.data = { loginStatus: "successful", token: this.token };
+    return publicResponse;
+  };
+
+  public loginWithSubdomain = async (identifier: string, password: string, subdomain: string): Promise<CrudifyResponse> => {
+    const email: string | undefined = identifier.includes("@") ? identifier : undefined;
+    const username: string | undefined = identifier.includes("@") ? undefined : identifier;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-api-key": Crudify.ApiKeyMetadata,
+    };
+
+    if (this.logLevel === "debug") {
+      console.log("Crudify LoginWithSubdomain URL:", Crudify.ApiMetadata);
+      console.log("Crudify LoginWithSubdomain Headers:", headers);
+    }
+
+    const response = await _fetch(Crudify.ApiMetadata, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        query: mutationLogin,
+        variables: { username, email, password, subdomain },
+      }),
+    });
+
+    const rawResponse = await response.json();
+
+    if (this.logLevel === "debug") {
+      console.log("Crudify LoginWithSubdomain Response:", rawResponse);
+    }
+
+    const internalResponse = this.formatResponseInternal(rawResponse);
+
+    if (internalResponse.success && internalResponse.data?.token) {
+      this.token = internalResponse.data.token;
+
+      // Si el login con subdomain devuelve configuración del cliente, la aplicamos
+      if (internalResponse.data?.publicApiKey) {
+        this.publicApiKey = internalResponse.data.publicApiKey;
+
+        // También necesitamos obtener el endpoint del subscriber
+        try {
+          const initResponse = await _fetch(Crudify.ApiMetadata, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": Crudify.ApiKeyMetadata },
+            body: JSON.stringify({ query: queryInit, variables: { apiKey: this.publicApiKey } }),
+          });
+
+          const initData: any = await initResponse.json();
+          if (initData?.data?.response) {
+            this.endpoint = initData.data.response.apiEndpoint;
+            this.apiKey = initData.data.response.apiKeyEndpoint;
+          }
+        } catch (initError) {
+          if (this.logLevel === "debug") {
+            console.warn("Could not initialize endpoints after subdomain login:", initError);
+          }
+        }
+      }
+
+      if (this.logLevel === "debug" && internalResponse.data?.version) {
+        console.info("Crudify LoginWithSubdomain Version:", internalResponse.data.version);
+      }
+    }
+
+    const publicResponse = this.adaptToPublicResponse(internalResponse);
+    if (publicResponse.success) {
+      publicResponse.data = {
+        loginStatus: "successful",
+        token: this.token,
+        publicApiKey: internalResponse.data?.publicApiKey,
+        appName: internalResponse.data?.appName,
+        logo: internalResponse.data?.logo,
+        colors: internalResponse.data?.colors,
+      };
+    }
     return publicResponse;
   };
 
