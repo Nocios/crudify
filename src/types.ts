@@ -115,7 +115,6 @@ export interface CrudifyPublicAPI {
   config: (env: CrudifyEnvType) => void;
   init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<void>;
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
-  loginWithSubdomain: (identifier: string, password: string, subdomain: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
