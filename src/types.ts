@@ -110,6 +110,28 @@ export type CrudifyResponseInterceptor = (response: RawGraphQLResponse) => RawGr
  * This is for documentation and understanding; tsup will generate the actual
  * module interface from the Crudify class implementation.
  */
+/**
+ * ✅ NUEVO: Información de tokens para refresh token pattern
+ */
+export type CrudifyTokenData = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  refreshExpiresAt: number;
+  isExpired: boolean;
+  isRefreshExpired: boolean;
+};
+
+/**
+ * ✅ NUEVO: Parámetros para configurar tokens manualmente
+ */
+export type CrudifyTokenConfig = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  refreshExpiresAt?: number;
+};
+
 export interface CrudifyPublicAPI {
   getLogLevel: () => CrudifyLogLevel;
   config: (env: CrudifyEnvType) => void;
@@ -117,6 +139,12 @@ export interface CrudifyPublicAPI {
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
+
+  // ✅ NUEVO: Métodos para refresh token pattern
+  refreshAccessToken: () => Promise<CrudifyResponse>;
+  setTokens: (tokens: CrudifyTokenConfig) => void;
+  getTokenData: () => CrudifyTokenData;
+
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructure: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructurePublic: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
