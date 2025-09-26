@@ -324,11 +324,21 @@ class Crudify implements CrudifyPublicAPI {
         this.tokenExpiresAt = 0;
         this.refreshExpiresAt = 0;
 
-        return {
+        const refreshFailedResponse = {
           success: false,
           errors: { _auth: ["TOKEN_REFRESH_FAILED_PLEASE_LOGIN"] },
           errorCode: NociosError.Unauthorized
         };
+
+        // Log para debug - este error viene directamente de performCrudOperation, no de GraphQL
+        if (this.logLevel === "debug") {
+          console.log("🔴 Crudify performCrudOperation - TOKEN_REFRESH_FAILED detected, returning directly:", refreshFailedResponse);
+        }
+
+        // ⚠️ IMPORTANTE: NO hacer alert() aquí, dejemos que SessionManager maneje la sesión expirada
+        console.warn("🚨 Crudify: Token refresh failed - session should be handled by SessionManager");
+
+        return refreshFailedResponse;
       }
     }
 
@@ -346,8 +356,17 @@ class Crudify implements CrudifyPublicAPI {
       const hasAuthError = rawResponse.errors.some((error: any) =>
         error.message?.includes('Unauthorized') ||
         error.message?.includes('Invalid token') ||
+        error.message?.includes('NOT_AUTHORIZED_TO_ACCESS') ||
         error.extensions?.code === 'UNAUTHENTICATED'
       );
+
+      if (hasAuthError) {
+        console.warn("🚨 Crudify: Authorization error detected", {
+          errors: rawResponse.errors,
+          hasRefreshToken: !!this.refreshToken,
+          isRefreshExpired: this.isRefreshTokenExpired()
+        });
+      }
 
       if (hasAuthError && this.refreshToken && !this.isRefreshTokenExpired()) {
         if (this.logLevel === "debug") {
