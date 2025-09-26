@@ -155,6 +155,10 @@ class Crudify implements CrudifyPublicAPI {
   private endpoint: string = "";
   private responseInterceptor: CrudifyResponseInterceptor | null = null;
 
+  // Race condition prevention
+  private refreshPromise: Promise<CrudifyResponse> | null = null;
+  private isRefreshing: boolean = false;
+
   private constructor() {}
 
   public getLogLevel = (): CrudifyLogLevel => {
@@ -319,15 +323,12 @@ class Crudify implements CrudifyPublicAPI {
           console.warn("Crudify: Token refresh failed, clearing tokens");
         }
         // Si el refresh falló, limpiar tokens para forzar re-login
-        this.token = "";
-        this.refreshToken = "";
-        this.tokenExpiresAt = 0;
-        this.refreshExpiresAt = 0;
+        this.clearTokensAndRefreshState();
 
         const refreshFailedResponse = {
           success: false,
           errors: { _auth: ["TOKEN_REFRESH_FAILED_PLEASE_LOGIN"] },
-          errorCode: NociosError.Unauthorized
+          errorCode: NociosError.Unauthorized,
         };
 
         // Log para debug - este error viene directamente de performCrudOperation, no de GraphQL
@@ -353,18 +354,19 @@ class Crudify implements CrudifyPublicAPI {
 
     // ✅ NUEVO: Manejo de errores de autenticación
     if (rawResponse.errors) {
-      const hasAuthError = rawResponse.errors.some((error: any) =>
-        error.message?.includes('Unauthorized') ||
-        error.message?.includes('Invalid token') ||
-        error.message?.includes('NOT_AUTHORIZED_TO_ACCESS') ||
-        error.extensions?.code === 'UNAUTHENTICATED'
+      const hasAuthError = rawResponse.errors.some(
+        (error: any) =>
+          error.message?.includes("Unauthorized") ||
+          error.message?.includes("Invalid token") ||
+          error.message?.includes("NOT_AUTHORIZED_TO_ACCESS") ||
+          error.extensions?.code === "UNAUTHENTICATED"
       );
 
       if (hasAuthError) {
         console.warn("🚨 Crudify: Authorization error detected", {
           errors: rawResponse.errors,
           hasRefreshToken: !!this.refreshToken,
-          isRefreshExpired: this.isRefreshTokenExpired()
+          isRefreshExpired: this.isRefreshTokenExpired(),
         });
       }
 
@@ -376,18 +378,10 @@ class Crudify implements CrudifyPublicAPI {
         const refreshResult = await this.refreshAccessToken();
         if (refreshResult.success) {
           // Reintentar la operación con el nuevo token
-          rawResponse = await this.executeQuery(
-            query,
-            variables,
-            { Authorization: `Bearer ${this.token}` },
-            options?.signal
-          );
+          rawResponse = await this.executeQuery(query, variables, { Authorization: `Bearer ${this.token}` }, options?.signal);
         } else {
           // Si el refresh falló, limpiar tokens
-          this.token = "";
-          this.refreshToken = "";
-          this.tokenExpiresAt = 0;
-          this.refreshExpiresAt = 0;
+          this.clearTokensAndRefreshState();
         }
       }
     }
@@ -475,7 +469,7 @@ class Crudify implements CrudifyPublicAPI {
         if (this.logLevel === "debug") {
           console.info("Crudify Login - Refresh token enabled", {
             accessExpires: new Date(this.tokenExpiresAt),
-            refreshExpires: new Date(this.refreshExpiresAt)
+            refreshExpires: new Date(this.refreshExpiresAt),
           });
         }
       }
@@ -491,21 +485,29 @@ class Crudify implements CrudifyPublicAPI {
         token: this.token,
         refreshToken: this.refreshToken,
         expiresAt: this.tokenExpiresAt,
-        refreshExpiresAt: this.refreshExpiresAt
+        refreshExpiresAt: this.refreshExpiresAt,
       };
     }
     return publicResponse;
   };
 
-
   /**
    * ✅ NUEVO: Renovar access token usando refresh token
    */
   public refreshAccessToken = async (): Promise<CrudifyResponse> => {
+    // Si ya hay un refresh en progreso, devolver la misma promesa
+    if (this.refreshPromise) {
+      if (this.logLevel === "debug") {
+        console.log("Crudify: Token refresh already in progress, waiting for existing request");
+      }
+      return this.refreshPromise;
+    }
+
+    // Validaciones iniciales
     if (!this.refreshToken) {
       return {
         success: false,
-        errors: { _refresh: ["NO_REFRESH_TOKEN_AVAILABLE"] }
+        errors: { _refresh: ["NO_REFRESH_TOKEN_AVAILABLE"] },
       };
     }
 
@@ -513,32 +515,64 @@ class Crudify implements CrudifyPublicAPI {
       throw new Error("Crudify: Not initialized. Call init() first.");
     }
 
+    // Si el token no está realmente expirado, no hacer nada
+    if (!this.isTokenExpired()) {
+      if (this.logLevel === "debug") {
+        console.log("Crudify: Token is not expired, skipping refresh");
+      }
+      return {
+        success: true,
+        data: {
+          token: this.token,
+          refreshToken: this.refreshToken,
+          expiresAt: this.tokenExpiresAt,
+          refreshExpiresAt: this.refreshExpiresAt,
+        },
+      };
+    }
+
+    // Crear la promesa de refresh y marcar como en progreso
+    this.isRefreshing = true;
+
+    this.refreshPromise = this.performTokenRefresh().finally(() => {
+      // Limpiar estado sin importar el resultado
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
+  };
+
+  private async performTokenRefresh(): Promise<CrudifyResponse> {
     try {
-      const rawResponse = await this.executeQuery(
-        mutationRefreshToken,
-        { refreshToken: this.refreshToken },
-        { "x-api-key": this.apiKey }
-      );
+      if (this.logLevel === "debug") {
+        console.log("Crudify: Starting token refresh process");
+      }
+
+      const rawResponse = await this.executeQuery(mutationRefreshToken, { refreshToken: this.refreshToken }, { "x-api-key": this.apiKey });
 
       const internalResponse = this.formatResponseInternal(rawResponse);
 
       if (internalResponse.success && internalResponse.data?.token) {
-        // Actualizar tokens
-        this.token = internalResponse.data.token;
-
-        if (internalResponse.data.refreshToken) {
-          this.refreshToken = internalResponse.data.refreshToken;
-        }
+        // Actualizar tokens de forma atómica
+        const newToken = internalResponse.data.token;
+        const newRefreshToken = internalResponse.data.refreshToken || this.refreshToken;
 
         // Actualizar tiempos de expiración
         const now = Date.now();
-        this.tokenExpiresAt = now + (internalResponse.data.expiresIn || 900) * 1000;
-        this.refreshExpiresAt = now + (internalResponse.data.refreshExpiresIn || 604800) * 1000;
+        const newTokenExpiresAt = now + (internalResponse.data.expiresIn || 900) * 1000;
+        const newRefreshExpiresAt = now + (internalResponse.data.refreshExpiresIn || 604800) * 1000;
+
+        // Actualizar todas las propiedades de una vez para evitar estados inconsistentes
+        this.token = newToken;
+        this.refreshToken = newRefreshToken;
+        this.tokenExpiresAt = newTokenExpiresAt;
+        this.refreshExpiresAt = newRefreshExpiresAt;
 
         if (this.logLevel === "debug") {
           console.info("Crudify Token refreshed successfully", {
             accessExpires: new Date(this.tokenExpiresAt),
-            refreshExpires: new Date(this.refreshExpiresAt)
+            refreshExpires: new Date(this.refreshExpiresAt),
           });
         }
 
@@ -548,22 +582,29 @@ class Crudify implements CrudifyPublicAPI {
             token: this.token,
             refreshToken: this.refreshToken,
             expiresAt: this.tokenExpiresAt,
-            refreshExpiresAt: this.refreshExpiresAt
-          }
+            refreshExpiresAt: this.refreshExpiresAt,
+          },
         };
       }
+
+      // Si no fue exitoso, limpiar tokens para forzar re-login
+      this.clearTokensAndRefreshState();
 
       return this.adaptToPublicResponse(internalResponse);
     } catch (error) {
       if (this.logLevel === "debug") {
         console.error("Crudify Token refresh failed:", error);
       }
+
+      // En caso de error, limpiar tokens
+      this.clearTokensAndRefreshState();
+
       return {
         success: false,
-        errors: { _refresh: ["TOKEN_REFRESH_FAILED"] }
+        errors: { _refresh: ["TOKEN_REFRESH_FAILED"] },
       };
     }
-  };
+  }
 
   /**
    * ✅ NUEVO: Verificar si el access token necesita renovación
@@ -572,7 +613,7 @@ class Crudify implements CrudifyPublicAPI {
     if (!this.tokenExpiresAt) return false;
     // Renovar 2 minutos antes de que expire
     const bufferTime = 2 * 60 * 1000; // 2 minutos
-    return Date.now() >= (this.tokenExpiresAt - bufferTime);
+    return Date.now() >= this.tokenExpiresAt - bufferTime;
   };
 
   /**
@@ -615,19 +656,44 @@ class Crudify implements CrudifyPublicAPI {
       expiresAt: this.tokenExpiresAt || 0,
       refreshExpiresAt: this.refreshExpiresAt || 0,
       isExpired: this.isTokenExpired(),
-      isRefreshExpired: this.isRefreshTokenExpired()
+      isRefreshExpired: this.isRefreshTokenExpired(),
     };
   };
 
   public logout = async (): Promise<CrudifyResponse> => {
-    this.token = "";
-    this.refreshToken = "";
-    this.tokenExpiresAt = 0;
-    this.refreshExpiresAt = 0;
+    this.clearTokensAndRefreshState();
+
+    if (this.logLevel === "debug") {
+      console.log("Crudify: Logout completed");
+    }
+
     return { success: true };
   };
 
   public isLogin = (): boolean => !!this.token;
+
+  /**
+   * Verificar si hay un refresh de token en progreso
+   */
+  public isTokenRefreshInProgress = (): boolean => this.isRefreshing;
+
+  /**
+   * Limpiar tokens y estado de refresh de forma segura
+   */
+  private clearTokensAndRefreshState = (): void => {
+    this.token = "";
+    this.refreshToken = "";
+    this.tokenExpiresAt = 0;
+    this.refreshExpiresAt = 0;
+
+    // También limpiar el estado de refresh para evitar race conditions
+    this.isRefreshing = false;
+    this.refreshPromise = null;
+
+    if (this.logLevel === "debug") {
+      console.log("Crudify: Tokens and refresh state cleared");
+    }
+  };
 
   public getPermissions = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
     return this.performCrudOperation(queryGetPermissions, {}, options);
