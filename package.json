@@ -16,7 +16,6 @@
   },
   "scripts": {
     "build": "tsup",
-    "start": "vite example",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -51,7 +50,6 @@
   "devDependencies": {
     "ts-node": "^10.9.2",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.2",
-    "vite": "^6.3.5"
+    "typescript": "^5.8.2"
   }
 }

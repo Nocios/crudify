@@ -188,7 +188,7 @@ class Crudify implements CrudifyPublicAPI {
     const data: any = await response.json();
 
     if (this.logLevel === "debug") {
-      console.log("Crudify Init Response:", data);
+      console.log("Crudify Init Response:", this.sanitizeForLogging(data));
       console.log("Crudify Metadata URL:", Crudify.ApiMetadata);
     }
 
@@ -197,19 +197,93 @@ class Crudify implements CrudifyPublicAPI {
       this.endpoint = initResponse.apiEndpoint;
       this.apiKey = initResponse.apiKeyEndpoint;
     } else {
-      console.error("Crudify Init Error:", data.errors || data);
+      console.error("Crudify Init Error:", this.sanitizeForLogging(data.errors || data));
       throw new Error("Failed to initialize Crudify. Check API key or network.");
     }
   };
 
   private formatErrorsInternal = (issues: CrudifyIssue[]): Record<string, string[]> => {
-    if (this.logLevel === "debug") console.log("Crudify FormatErrors Issues:", issues);
+    if (this.logLevel === "debug") console.log("Crudify FormatErrors Issues:", this.sanitizeForLogging(issues));
     return issues.reduce((acc, issue) => {
       const key = String(issue.path[0] ?? "_error");
       if (!acc[key]) acc[key] = [];
       acc[key].push(issue.message);
       return acc;
     }, {} as Record<string, string[]>);
+  };
+
+  private containsDangerousProperties = (obj: any, depth = 0): boolean => {
+    if (depth > 10) return false;
+
+    if (!obj || typeof obj !== "object") return false;
+
+    const dangerousKeys = [
+      "__proto__",
+      "constructor",
+      "prototype",
+      "eval",
+      "function",
+      "setTimeout",
+      "setInterval",
+      "require",
+      "module",
+      "exports",
+      "global",
+      "process",
+    ];
+
+    for (const key in obj) {
+      if (dangerousKeys.includes(key.toLowerCase())) {
+        return true;
+      }
+
+      // Verificar recursivamente objetos anidados
+      if (obj[key] && typeof obj[key] === "object") {
+        if (this.containsDangerousProperties(obj[key], depth + 1)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
+  private sanitizeForLogging = (data: any): any => {
+    if (!data || typeof data !== "object") {
+      // Enmascarar strings que parecen tokens o API keys
+      if (typeof data === "string") {
+        if (data.length > 20 && (data.includes("da2-") || data.includes("ey") || data.match(/^[a-zA-Z0-9_-]{20,}$/))) {
+          return data.substring(0, 6) + "******";
+        }
+      }
+      return data;
+    }
+
+    if (Array.isArray(data)) {
+      return data.map(item => this.sanitizeForLogging(item));
+    }
+
+    const sanitized: any = {};
+    const sensitiveKeys = [
+      "apikey", "apiKey", "api_key", "token", "accessToken", "access_token",
+      "refreshToken", "refresh_token", "authorization", "auth", "password",
+      "secret", "key", "credential", "jwt", "bearer"
+    ];
+
+    for (const [key, value] of Object.entries(data)) {
+      const keyLower = key.toLowerCase();
+      const isSensitive = sensitiveKeys.some(sensitiveKey => keyLower.includes(sensitiveKey));
+
+      if (isSensitive && typeof value === "string" && value.length > 6) {
+        sanitized[key] = value.substring(0, 6) + "******";
+      } else if (value && typeof value === "object") {
+        sanitized[key] = this.sanitizeForLogging(value);
+      } else {
+        sanitized[key] = value;
+      }
+    }
+
+    return sanitized;
   };
 
   private formatResponseInternal = (response: any): InternalCrudifyResponseType => {
@@ -222,7 +296,7 @@ class Crudify implements CrudifyPublicAPI {
     }
 
     if (!response.data || !response.data.response) {
-      if (this.logLevel === "debug") console.error("Crudify FormatResponse: Invalid response structure", response);
+      if (this.logLevel === "debug") console.error("Crudify FormatResponse: Invalid response structure", this.sanitizeForLogging(response));
       return { success: false, errors: { _error: ["INVALID_RESPONSE_STRUCTURE"] } };
     }
 
@@ -232,9 +306,44 @@ class Crudify implements CrudifyPublicAPI {
     let dataResponse;
 
     try {
-      dataResponse = apiResponse.data ? JSON.parse(apiResponse.data) : null;
+      if (!apiResponse.data) {
+        dataResponse = null;
+      } else {
+        // Validación básica de seguridad antes del parsing
+        const rawData = String(apiResponse.data);
+
+        // Verificar que no sea excesivamente largo (DoS protection)
+        if (rawData.length > 10 * 1024 * 1024) {
+          // 10MB limit
+          throw new Error("Response data too large");
+        }
+
+        // Verificar que comience con caracteres válidos de JSON
+        const trimmed = rawData.trim();
+        if (
+          !trimmed.startsWith("{") &&
+          !trimmed.startsWith("[") &&
+          !trimmed.startsWith('"') &&
+          trimmed !== "null" &&
+          trimmed !== "true" &&
+          trimmed !== "false" &&
+          !/^\d+(\.\d+)?$/.test(trimmed)
+        ) {
+          throw new Error("Invalid JSON format");
+        }
+
+        dataResponse = JSON.parse(rawData);
+
+        // Validación post-parsing para objetos
+        if (dataResponse && typeof dataResponse === "object") {
+          // Verificar que no tenga propiedades peligrosas
+          if (this.containsDangerousProperties(dataResponse)) {
+            if (this.logLevel === "debug") console.warn("Crudify FormatResponse: Potentially dangerous properties detected");
+          }
+        }
+      }
     } catch (e) {
-      if (this.logLevel === "debug") console.error("Crudify FormatResponse: Failed to parse data", apiResponse.data, e);
+      if (this.logLevel === "debug") console.error("Crudify FormatResponse: Failed to parse data", this.sanitizeForLogging(apiResponse.data), this.sanitizeForLogging(e));
       if (status === "OK" || status === "WARNING") {
         return { success: false, errors: { _error: ["INVALID_DATA_FORMAT_IN_SUCCESSFUL_RESPONSE"] } };
       }
@@ -243,7 +352,7 @@ class Crudify implements CrudifyPublicAPI {
 
     if (this.logLevel === "debug") {
       console.log("Crudify FormatResponse Status:", status);
-      console.log("Crudify FormatResponse Parsed Data (dataResponse):", dataResponse);
+      console.log("Crudify FormatResponse Parsed Data (dataResponse):", this.sanitizeForLogging(dataResponse));
       console.log("Crudify FormatResponse ErrorCode:", errorCode);
     }
 
@@ -333,7 +442,7 @@ class Crudify implements CrudifyPublicAPI {
 
         // Log para debug - este error viene directamente de performCrudOperation, no de GraphQL
         if (this.logLevel === "debug") {
-          console.log("🔴 Crudify performCrudOperation - TOKEN_REFRESH_FAILED detected, returning directly:", refreshFailedResponse);
+          console.log("🔴 Crudify performCrudOperation - TOKEN_REFRESH_FAILED detected, returning directly:", this.sanitizeForLogging(refreshFailedResponse));
         }
 
         // ⚠️ IMPORTANTE: NO hacer alert() aquí, dejemos que SessionManager maneje la sesión expirada
@@ -363,11 +472,11 @@ class Crudify implements CrudifyPublicAPI {
       );
 
       if (hasAuthError) {
-        console.warn("🚨 Crudify: Authorization error detected", {
+        console.warn("🚨 Crudify: Authorization error detected", this.sanitizeForLogging({
           errors: rawResponse.errors,
           hasRefreshToken: !!this.refreshToken,
           isRefreshExpired: this.isRefreshTokenExpired(),
-        });
+        }));
       }
 
       if (hasAuthError && this.refreshToken && !this.isRefreshTokenExpired()) {
@@ -386,7 +495,7 @@ class Crudify implements CrudifyPublicAPI {
       }
     }
 
-    if (this.logLevel === "debug") console.log("Crudify Raw Response:", rawResponse);
+    if (this.logLevel === "debug") console.log("Crudify Raw Response:", this.sanitizeForLogging(rawResponse));
 
     if (this.responseInterceptor) rawResponse = await Promise.resolve(this.responseInterceptor(rawResponse));
 
@@ -398,7 +507,7 @@ class Crudify implements CrudifyPublicAPI {
 
     let rawResponse: RawGraphQLResponse = await this.executeQuery(query, variables, { "x-api-key": this.apiKey }, options?.signal);
 
-    if (this.logLevel === "debug") console.log("Crudify Raw Response:", rawResponse);
+    if (this.logLevel === "debug") console.log("Crudify Raw Response:", this.sanitizeForLogging(rawResponse));
 
     if (this.responseInterceptor) rawResponse = await Promise.resolve(this.responseInterceptor(rawResponse));
 
@@ -422,10 +531,10 @@ class Crudify implements CrudifyPublicAPI {
     };
 
     if (this.logLevel === "debug") {
-      console.log("Crudify Request URL:", this.endpoint);
-      console.log("Crudify Request Headers:", headers);
-      console.log("Crudify Request Query:", query);
-      console.log("Crudify Request Variables:", variables);
+      console.log("Crudify Request URL:", this.sanitizeForLogging(this.endpoint));
+      console.log("Crudify Request Headers:", this.sanitizeForLogging(headers));
+      console.log("Crudify Request Query:", this.sanitizeForLogging(query));
+      console.log("Crudify Request Variables:", this.sanitizeForLogging(variables));
     }
 
     const response = await _fetch(this.endpoint, {
@@ -439,7 +548,7 @@ class Crudify implements CrudifyPublicAPI {
 
     if (this.logLevel === "debug") {
       console.log("Crudify Response Status:", response.status);
-      console.log("Crudify Response Body:", responseBody);
+      console.log("Crudify Response Body:", this.sanitizeForLogging(responseBody));
     }
 
     return responseBody;
@@ -593,7 +702,7 @@ class Crudify implements CrudifyPublicAPI {
       return this.adaptToPublicResponse(internalResponse);
     } catch (error) {
       if (this.logLevel === "debug") {
-        console.error("Crudify Token refresh failed:", error);
+        console.error("Crudify Token refresh failed:", this.sanitizeForLogging(error));
       }
 
       // En caso de error, limpiar tokens

@@ -2,6 +2,10 @@
 
 [![npm version](https://badge.fury.io/js/%40nocios%2Fcrudify-browser.svg)](https://badge.fury.io/js/%40nocios%2Fcrudify-browser)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.1.3-3178c6.svg)](https://typescriptlang.org/)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-green.svg)](https://npmjs.com/package/@nocios/crudify-browser)
+
+**Core API SDK for the Crudify ecosystem - Lightweight JavaScript SDK for browser environments with zero dependencies.**
 
 SDK JavaScript ligero para acceder a la API GraphQL de Crudify desde navegadores. Incluye Refresh Token Pattern, operaciones CRUD completas y funcionalidades avanzadas de autenticación.
 
@@ -14,6 +18,14 @@ SDK JavaScript ligero para acceder a la API GraphQL de Crudify desde navegadores
 - **📱 TypeScript**: Completamente tipado
 - **⚡ Lightweight**: Sin dependencias externas
 - **🛡️ Seguro**: Manejo seguro de tokens y autenticación
+
+## 📖 Documentation
+
+- 📋 **[Complete API Documentation](docs/overview.md)** - Comprehensive SDK reference and usage guide
+- 🔒 **[Security Guide](docs/security.md)** - Security features and best practices
+- 🏗️ **[Architecture](docs/architecture.md)** - SDK design and internal structure
+- 🔧 **[Migration Guide](docs/migration.md)** - Upgrade instructions between versions
+- 💡 **[Examples](docs/examples.md)** - Real-world implementation examples
 
 ## 📦 Instalación
 
