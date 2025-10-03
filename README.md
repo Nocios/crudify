@@ -127,13 +127,16 @@ const item = await crudify.readItem("products", {
   _id: "60f7b1234567890123456789",
 });
 
-// Leer múltiples con filtros
+// Leer múltiples con filtros y paginación
 const items = await crudify.readItems("products", {
   filter: {
     category: "electronics",
     price: { $gte: 50, $lte: 200 },
   },
-  limit: 20,
+  pagination: {
+    page: 1,
+    limit: 20, // 20 items por página
+  },
   sort: { createdAt: -1 },
 });
 
@@ -141,6 +144,33 @@ if (items.success) {
   console.log("Productos:", items.data.items);
   console.log("Total:", items.data.total);
 }
+
+// ⚡ Obtener TODOS los resultados SIN paginación
+const allItems = await crudify.readItems("products", {
+  filter: { category: "electronics" },
+  pagination: {
+    limit: 0, // ✅ limit: 0 retorna TODOS los resultados
+  },
+  sort: { name: 1 },
+});
+
+// Leer con referencias pobladas (populate)
+const orders = await crudify.readItems("orders", {
+  filter: { status: "pending" },
+  populate: [
+    {
+      path: "customerId", // Campo a poblar
+      moduleKey: "customers", // Módulo referenciado
+      select: ["name", "email"], // Campos a incluir
+    },
+    {
+      path: "productId",
+      moduleKey: "products",
+      select: "name price stock", // También acepta string
+    },
+  ],
+  pagination: { page: 1, limit: 10 },
+});
 ```
 
 ### Update - Actualizar
@@ -292,8 +322,10 @@ class ProductAPI {
 
     return await crudify.readItems("products", {
       filter,
-      limit: 20,
-      offset: (page - 1) * 20,
+      pagination: {
+        page,
+        limit: 20,
+      },
       sort: { name: 1 },
     });
   }

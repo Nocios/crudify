@@ -223,7 +223,7 @@ if (itemResult.success) {
   console.error("Producto no encontrado");
 }
 
-// Leer múltiples items con filtros
+// Leer múltiples items con filtros y paginación
 const itemsResult = await crudify.readItems("products", {
   // Filtros
   filter: {
@@ -231,15 +231,14 @@ const itemsResult = await crudify.readItems("products", {
     price: { $gte: 50, $lte: 200 },
   },
 
-  // Paginación
-  limit: 20,
-  offset: 0,
+  // Paginación (objeto con page y limit)
+  pagination: {
+    page: 1, // Página 1
+    limit: 20, // 20 items por página (default: 20)
+  },
 
   // Ordenamiento
   sort: { createdAt: -1 }, // más reciente primero
-
-  // Campos a incluir
-  fields: ["name", "price", "category", "createdAt"],
 });
 
 if (itemsResult.success) {
@@ -250,10 +249,48 @@ if (itemsResult.success) {
       { _id: "...", name: "Producto 1", price: 99.99, ... },
       { _id: "...", name: "Producto 2", price: 149.99, ... }
     ],
-    total: 45,
-    hasMore: true
+    total: 45
   }
   */
+}
+
+// ⚡ IMPORTANTE: Obtener TODOS los resultados SIN paginación
+const allItemsResult = await crudify.readItems("products", {
+  filter: { inStock: true },
+  pagination: {
+    limit: 0, // ✅ limit: 0 retorna TODOS los resultados sin paginación
+  },
+  sort: { name: 1 },
+});
+
+console.log("Total items:", allItemsResult.data.items.length);
+console.log("Total en DB:", allItemsResult.data.total);
+
+// Leer con referencias pobladas (populate)
+const ordersResult = await crudify.readItems("orders", {
+  filter: { status: "pending" },
+  populate: [
+    {
+      path: "customerId", // Campo a poblar (debe ser una referencia)
+      moduleKey: "customers", // Módulo al que referencia
+      select: ["name", "email", "phone"], // Campos a incluir (array)
+    },
+    {
+      path: "productIds", // También funciona con arrays de referencias
+      moduleKey: "products",
+      select: "name price stock", // También acepta string separado por espacios
+    },
+  ],
+  pagination: { page: 1, limit: 10 },
+  sort: { createdAt: -1 },
+});
+
+if (ordersResult.success) {
+  ordersResult.data.items.forEach((order) => {
+    console.log("Order:", order._id);
+    console.log("Customer:", order.customerId?.name); // Datos poblados
+    console.log("Products:", order.productIds?.map((p) => p.name)); // Array poblado
+  });
 }
 
 // Búsqueda avanzada con operadores
@@ -274,8 +311,11 @@ const searchResult = await crudify.readItems("users", {
     // Existe el campo
     email: { $exists: true },
   },
+  pagination: {
+    page: 1,
+    limit: 50,
+  },
   sort: { name: 1 },
-  limit: 50,
 });
 ```
 
@@ -670,8 +710,10 @@ class EcommerceAPI {
 
     return await crudify.readItems("products", {
       filter,
-      limit,
-      offset: (page - 1) * limit,
+      pagination: {
+        page,
+        limit,
+      },
       sort: { name: 1 },
     });
   }
@@ -698,6 +740,9 @@ class EcommerceAPI {
     if (!this.isLoggedIn()) return { success: false, errors: ["Not logged in"] };
 
     return await crudify.readItems("cart_items", {
+      pagination: {
+        limit: 0, // Obtener todos los items del carrito
+      },
       sort: { addedAt: -1 },
     });
   }
@@ -793,10 +838,11 @@ class BlogAPI {
   async getPosts(page = 1, limit = 10) {
     return await crudify.readItems("posts", {
       filter: { published: true },
-      limit,
-      offset: (page - 1) * limit,
+      pagination: {
+        page,
+        limit,
+      },
       sort: { publishedAt: -1 },
-      fields: ["title", "excerpt", "author", "publishedAt", "tags"],
     });
   }
 
@@ -811,6 +857,9 @@ class BlogAPI {
   async getComments(postId) {
     return await crudify.readItems("comments", {
       filter: { postId, approved: true },
+      pagination: {
+        limit: 0, // Todos los comentarios del post
+      },
       sort: { createdAt: 1 },
     });
   }
@@ -831,8 +880,10 @@ class BlogAPI {
         $or: [{ title: { $regex: query, $options: "i" } }, { content: { $regex: query, $options: "i" } }, { tags: { $in: [query] } }],
         published: true,
       },
-      limit: 20,
-      fields: ["title", "excerpt", "publishedAt"],
+      pagination: {
+        page: 1,
+        limit: 20,
+      },
     });
   }
 }
@@ -1043,12 +1094,10 @@ async function logout() {
 ```javascript
 async function loadPaginatedData(moduleKey, page = 1, limit = 20) {
   return await crudify.readItems(moduleKey, {
-    limit,
-    offset: (page - 1) * limit,
-
-    // Solo incluir campos necesarios
-    fields: ["_id", "name", "createdAt"],
-
+    pagination: {
+      page,
+      limit,
+    },
     // Ordenamiento consistente para paginación
     sort: { _id: 1 },
   });
@@ -1059,14 +1108,26 @@ async function loadMore(currentItems, moduleKey, page) {
   const result = await loadPaginatedData(moduleKey, page);
 
   if (result.success) {
+    const hasMore = result.data.items.length === 20; // Si retornó menos, no hay más
     return {
       items: [...currentItems, ...result.data.items],
-      hasMore: result.data.hasMore,
+      hasMore,
       total: result.data.total,
     };
   }
 
   return { items: currentItems, hasMore: false };
+}
+
+// ⚡ Cargar todos los datos (usar con precaución)
+async function loadAllData(moduleKey, filter = {}) {
+  return await crudify.readItems(moduleKey, {
+    filter,
+    pagination: {
+      limit: 0, // ✅ Retorna TODOS los resultados
+    },
+    sort: { _id: 1 },
+  });
 }
 ```
 
@@ -1125,7 +1186,11 @@ async function getCachedData(moduleKey, cacheKey, fetchFn) {
 }
 
 // Uso
-const products = await getCachedData("products", "products_page_1", () => crudify.readItems("products", { limit: 20, offset: 0 }));
+const products = await getCachedData("products", "products_page_1", () =>
+  crudify.readItems("products", {
+    pagination: { page: 1, limit: 20 },
+  })
+);
 ```
 
 ## 🔐 Configuración de Seguridad
@@ -1185,11 +1250,22 @@ crudify.config("prod"); // Asegurar environment correcto
 **4. Operaciones lentas**
 
 ```javascript
-// Usar campos específicos y paginación
+// Usar paginación para colecciones grandes
 const result = await crudify.readItems("large_collection", {
-  fields: ["_id", "name"], // Solo campos necesarios
-  limit: 20, // Paginar resultados
+  filter: {},
+  pagination: {
+    page: 1,
+    limit: 20, // Paginar resultados (default: 20)
+  },
   signal: abortController.signal, // Timeout
+});
+
+// ⚠️ PRECAUCIÓN: Usar limit: 0 solo cuando sea necesario
+// Retorna TODOS los resultados, puede ser lento en colecciones grandes
+const allResults = await crudify.readItems("small_collection", {
+  pagination: {
+    limit: 0, // Solo usar con colecciones pequeñas
+  },
 });
 ```
 
