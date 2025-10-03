@@ -159,6 +159,9 @@ class Crudify implements CrudifyPublicAPI {
   private refreshPromise: Promise<CrudifyResponse> | null = null;
   private isRefreshing: boolean = false;
 
+  // ✅ FASE 3.5: Callback para notificar cuando tokens se invalidan
+  private onTokensInvalidated: (() => void) | null = null;
+
   private constructor() {}
 
   public getLogLevel = (): CrudifyLogLevel => {
@@ -895,6 +898,13 @@ class Crudify implements CrudifyPublicAPI {
   public isTokenRefreshInProgress = (): boolean => this.isRefreshing;
 
   /**
+   * ✅ FASE 3.5: Configurar callback de invalidación de tokens
+   */
+  public setTokenInvalidationCallback = (callback: (() => void) | null): void => {
+    this.onTokensInvalidated = callback;
+  };
+
+  /**
    * Limpiar tokens y estado de refresh de forma segura
    */
   private clearTokensAndRefreshState = (): void => {
@@ -909,6 +919,11 @@ class Crudify implements CrudifyPublicAPI {
 
     if (this.logLevel === "debug") {
       console.log("Crudify: Tokens and refresh state cleared");
+    }
+
+    // ✅ FASE 3.5: Notificar que tokens fueron invalidados
+    if (this.onTokensInvalidated) {
+      this.onTokensInvalidated();
     }
   };
 
