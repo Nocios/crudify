@@ -8,24 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Comprehensive documentation structure with detailed API reference
 - Enhanced TypeScript support with complete type definitions
 - Performance optimization guides and best practices
 
 ### Changed
+
 - Updated README with standardized documentation links
 - Improved documentation organization following ecosystem standards
 
 ### Deprecated
+
 - Nothing deprecated in this release
 
 ### Removed
+
 - Nothing removed in this release
 
 ### Fixed
+
 - Documentation consistency and API reference completeness
 
 ### Security
+
 - Documented security implementation details and best practices
 - Added secure token management guidelines
 
@@ -34,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - 2024-01-15
 
 ### Added
+
 - Zero-dependency architecture for minimal bundle size
 - Complete TypeScript strict mode support with comprehensive type definitions
 - Enhanced security with data sanitization for debug logs
@@ -41,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling with structured error codes
 
 ### Changed
+
 - **BREAKING:** Constructor now accepts configuration object instead of individual parameters
 - **BREAKING:** Updated error response structure for consistency
 - **BREAKING:** Simplified response format for better developer experience
@@ -48,15 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced debug logging with data sanitization
 
 ### Deprecated
+
 - Old constructor signature (will be removed in v5.0)
 - Legacy error response format
 
 ### Removed
+
 - **BREAKING:** Removed unnecessary Vite development dependency
 - **BREAKING:** Removed support for legacy authentication methods
 - Obsolete utility functions and deprecated APIs
 
 ### Fixed
+
 - ✅ **Parsing JSON Inseguro** - Implemented comprehensive security validations
 - ✅ **Vulnerabilidad en Dependencia Vite** - Removed unnecessary dependency
 - ✅ **Logs de Debug Exponen Información Sensible** - Added data sanitization
@@ -65,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token refresh timing edge cases
 
 ### Security
+
 - **Enhanced Input Validation:** Comprehensive validation for all API inputs
 - **Secure Debug Logging:** Sensitive data sanitization in debug output
 - **Token Security:** Improved token storage and refresh mechanisms
@@ -75,43 +87,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.2.1] - 2023-12-01
 
 ### Fixed
+
 - Token refresh race condition in concurrent requests
 - Memory leak in event listeners
 - TypeScript declaration file exports
 
 ### Security
+
 - Updated security headers for API requests
 - Enhanced token validation
 
 ## [3.2.0] - 2023-11-15
 
 ### Added
+
 - Transaction support for atomic operations
 - File upload/download with signed URLs
 - Request timeout configuration
 - Retry mechanism for failed requests
 
 ### Changed
+
 - Improved error messages with more context
 - Enhanced debugging capabilities
 
 ### Fixed
+
 - Network error handling edge cases
 - Token expiration edge case handling
 
 ## [3.1.0] - 2023-10-01
 
 ### Added
+
 - Public API operations (no authentication required)
 - Advanced filtering with MongoDB-style operators
 - Pagination support for large datasets
 - Sorting capabilities
 
 ### Changed
+
 - Optimized bundle size for better performance
 - Improved TypeScript definitions
 
 ### Fixed
+
 - Authentication state persistence across page reloads
 - CORS handling in development environments
 
@@ -139,16 +159,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes are only introduced in major versions and include:
 
 1. **API Method Changes:**
+
    - Method signature modifications
    - Return value structure changes
    - Required parameter additions
 
 2. **Constructor Changes:**
+
    - Configuration object structure changes
    - Required option additions
    - Default behavior modifications
 
 3. **Error Handling Changes:**
+
    - Error object structure changes
    - Error code modifications
    - Exception type changes
@@ -184,21 +207,25 @@ When making changes to the SDK:
 ## [4.1.0] - 2024-02-15
 
 ### Added
+
 - New `batch()` method for executing multiple operations efficiently
 - Enhanced caching mechanism with configurable TTL
 - Request deduplication for improved performance
 
 ### Changed
+
 - Updated `readItems()` to support advanced filtering options
 - Improved error messages with more detailed context
 - Enhanced TypeScript definitions for better IDE support
 
 ### Fixed
+
 - Fixed race condition in token refresh mechanism
 - Resolved memory leak in event listener cleanup
 - Fixed edge case in network error handling
 
 ### Security
+
 - Enhanced input validation for all API methods
 - Improved token storage encryption
 - Added request signature validation
