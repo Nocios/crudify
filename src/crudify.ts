@@ -438,10 +438,10 @@ class Crudify implements CrudifyPublicAPI {
   private async performCrudOperation(query: string, variables: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> {
     if (!this.endpoint || !this.apiKey) throw new Error("Crudify: Not initialized. Call init() first.");
 
-    // ✅ NUEVO: Auto-refresh de tokens
-    if (this.token && this.isTokenExpired() && this.refreshToken && !this.isRefreshTokenExpired()) {
+    // ✅ FASE 2.3: Auto-refresh de tokens con buffer crítico antes de operación importante
+    if (this.token && this.isTokenExpired("critical") && this.refreshToken && !this.isRefreshTokenExpired()) {
       if (this.logLevel === "debug") {
-        console.info("Crudify: Access token expired, attempting refresh...");
+        console.info("Crudify: Access token expiring critically, refreshing before operation...");
       }
 
       const refreshResult = await this.refreshAccessToken();
@@ -740,12 +740,19 @@ class Crudify implements CrudifyPublicAPI {
   }
 
   /**
-   * ✅ NUEVO: Verificar si el access token necesita renovación
+   * ✅ FASE 2.3: Verificar si el access token necesita renovación con buffer dinámico
+   * @param urgencyLevel - 'critical' (30s), 'high' (2min), 'normal' (5min)
    */
-  private isTokenExpired = (): boolean => {
+  private isTokenExpired = (urgencyLevel: "critical" | "high" | "normal" = "high"): boolean => {
     if (!this.tokenExpiresAt) return false;
-    // Renovar 2 minutos antes de que expire
-    const bufferTime = 2 * 60 * 1000; // 2 minutos
+
+    const bufferTimes = {
+      critical: 30 * 1000, // 30 segundos - para operaciones críticas
+      high: 2 * 60 * 1000, // 2 minutos - check por defecto
+      normal: 5 * 60 * 1000, // 5 minutos - renovación preventiva
+    };
+
+    const bufferTime = bufferTimes[urgencyLevel];
     return Date.now() >= this.tokenExpiresAt - bufferTime;
   };
 
@@ -802,12 +809,12 @@ class Crudify implements CrudifyPublicAPI {
       refreshToken: this.refreshToken || "",
       expiresAt: this.tokenExpiresAt || 0,
       refreshExpiresAt: this.refreshExpiresAt || 0,
-      isExpired: this.isTokenExpired(),
+      isExpired: this.isTokenExpired("high"), // Buffer de 2 min
       isRefreshExpired: this.isRefreshTokenExpired(),
       // ✅ NUEVO: Información de validación
       isValid,
       expiresIn: timeUntilExpiry,
-      willExpireSoon: this.isTokenExpired(), // Usa buffer de 2 min
+      willExpireSoon: this.isTokenExpired("normal"), // Buffer de 5 min para renovación preventiva
     };
   };
 
