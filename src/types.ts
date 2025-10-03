@@ -111,7 +111,7 @@ export type CrudifyResponseInterceptor = (response: RawGraphQLResponse) => RawGr
  * module interface from the Crudify class implementation.
  */
 /**
- * ✅ NUEVO: Información de tokens para refresh token pattern
+ * ✅ MEJORADO: Información de tokens para refresh token pattern con validación
  */
 export type CrudifyTokenData = {
   accessToken: string;
@@ -120,6 +120,10 @@ export type CrudifyTokenData = {
   refreshExpiresAt: number;
   isExpired: boolean;
   isRefreshExpired: boolean;
+  // ✅ NUEVO: Campos de validación
+  isValid: boolean;
+  expiresIn: number;
+  willExpireSoon: boolean;
 };
 
 /**

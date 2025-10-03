@@ -260,19 +260,32 @@ class Crudify implements CrudifyPublicAPI {
     }
 
     if (Array.isArray(data)) {
-      return data.map(item => this.sanitizeForLogging(item));
+      return data.map((item) => this.sanitizeForLogging(item));
     }
 
     const sanitized: any = {};
     const sensitiveKeys = [
-      "apikey", "apiKey", "api_key", "token", "accessToken", "access_token",
-      "refreshToken", "refresh_token", "authorization", "auth", "password",
-      "secret", "key", "credential", "jwt", "bearer"
+      "apikey",
+      "apiKey",
+      "api_key",
+      "token",
+      "accessToken",
+      "access_token",
+      "refreshToken",
+      "refresh_token",
+      "authorization",
+      "auth",
+      "password",
+      "secret",
+      "key",
+      "credential",
+      "jwt",
+      "bearer",
     ];
 
     for (const [key, value] of Object.entries(data)) {
       const keyLower = key.toLowerCase();
-      const isSensitive = sensitiveKeys.some(sensitiveKey => keyLower.includes(sensitiveKey));
+      const isSensitive = sensitiveKeys.some((sensitiveKey) => keyLower.includes(sensitiveKey));
 
       if (isSensitive && typeof value === "string" && value.length > 6) {
         sanitized[key] = value.substring(0, 6) + "******";
@@ -343,7 +356,12 @@ class Crudify implements CrudifyPublicAPI {
         }
       }
     } catch (e) {
-      if (this.logLevel === "debug") console.error("Crudify FormatResponse: Failed to parse data", this.sanitizeForLogging(apiResponse.data), this.sanitizeForLogging(e));
+      if (this.logLevel === "debug")
+        console.error(
+          "Crudify FormatResponse: Failed to parse data",
+          this.sanitizeForLogging(apiResponse.data),
+          this.sanitizeForLogging(e)
+        );
       if (status === "OK" || status === "WARNING") {
         return { success: false, errors: { _error: ["INVALID_DATA_FORMAT_IN_SUCCESSFUL_RESPONSE"] } };
       }
@@ -442,7 +460,10 @@ class Crudify implements CrudifyPublicAPI {
 
         // Log para debug - este error viene directamente de performCrudOperation, no de GraphQL
         if (this.logLevel === "debug") {
-          console.log("🔴 Crudify performCrudOperation - TOKEN_REFRESH_FAILED detected, returning directly:", this.sanitizeForLogging(refreshFailedResponse));
+          console.log(
+            "🔴 Crudify performCrudOperation - TOKEN_REFRESH_FAILED detected, returning directly:",
+            this.sanitizeForLogging(refreshFailedResponse)
+          );
         }
 
         // ⚠️ IMPORTANTE: NO hacer alert() aquí, dejemos que SessionManager maneje la sesión expirada
@@ -472,11 +493,14 @@ class Crudify implements CrudifyPublicAPI {
       );
 
       if (hasAuthError) {
-        console.warn("🚨 Crudify: Authorization error detected", this.sanitizeForLogging({
-          errors: rawResponse.errors,
-          hasRefreshToken: !!this.refreshToken,
-          isRefreshExpired: this.isRefreshTokenExpired(),
-        }));
+        console.warn(
+          "🚨 Crudify: Authorization error detected",
+          this.sanitizeForLogging({
+            errors: rawResponse.errors,
+            hasRefreshToken: !!this.refreshToken,
+            isRefreshExpired: this.isRefreshTokenExpired(),
+          })
+        );
       }
 
       if (hasAuthError && this.refreshToken && !this.isRefreshTokenExpired()) {
@@ -738,9 +762,11 @@ class Crudify implements CrudifyPublicAPI {
   };
 
   /**
-   * ✅ NUEVO: Configurar tokens manualmente (para restaurar sesión)
+   * ✅ MEJORADO: Configurar tokens manualmente (para restaurar sesión)
+   * Ahora valida el access token antes de configurarlo
    */
   public setTokens = (tokens: CrudifyTokenConfig): void => {
+    // Primero, configurar todos los campos temporalmente
     if (tokens.accessToken) {
       this.token = tokens.accessToken;
     }
@@ -753,12 +779,24 @@ class Crudify implements CrudifyPublicAPI {
     if (tokens.refreshExpiresAt) {
       this.refreshExpiresAt = tokens.refreshExpiresAt;
     }
+
+    // ✅ NUEVO: Validar el access token después de configurarlo
+    if (this.token && !this.isAccessTokenValid()) {
+      if (this.logLevel === "debug") {
+        console.warn("Crudify: Attempted to set invalid access token, clearing tokens");
+      }
+      // Si el token es inválido, limpiar todo
+      this.clearTokensAndRefreshState();
+    }
   };
 
   /**
-   * ✅ NUEVO: Obtener información de los tokens actuales
+   * ✅ MEJORADO: Obtener información de los tokens actuales con validación
    */
   public getTokenData = () => {
+    const isValid = this.isAccessTokenValid();
+    const timeUntilExpiry = this.tokenExpiresAt ? this.tokenExpiresAt - Date.now() : 0;
+
     return {
       accessToken: this.token || "",
       refreshToken: this.refreshToken || "",
@@ -766,6 +804,10 @@ class Crudify implements CrudifyPublicAPI {
       refreshExpiresAt: this.refreshExpiresAt || 0,
       isExpired: this.isTokenExpired(),
       isRefreshExpired: this.isRefreshTokenExpired(),
+      // ✅ NUEVO: Información de validación
+      isValid,
+      expiresIn: timeUntilExpiry,
+      willExpireSoon: this.isTokenExpired(), // Usa buffer de 2 min
     };
   };
 
@@ -779,7 +821,66 @@ class Crudify implements CrudifyPublicAPI {
     return { success: true };
   };
 
-  public isLogin = (): boolean => !!this.token;
+  /**
+   * ✅ NUEVO: Validar si el access token es válido (estructura JWT y expiración)
+   * @private
+   */
+  private isAccessTokenValid = (): boolean => {
+    if (!this.token) return false;
+
+    try {
+      // Decodificar JWT sin verificar firma (para evitar depender de secret en cliente)
+      const parts = this.token.split(".");
+      if (parts.length !== 3) {
+        if (this.logLevel === "debug") {
+          console.warn("Crudify: Invalid JWT format - token must have 3 parts");
+        }
+        return false;
+      }
+
+      // Decodificar payload (parte media del JWT)
+      const payload = JSON.parse(atob(parts[1]));
+
+      // Verificar campos obligatorios del JWT
+      if (!payload.sub || !payload.exp) {
+        if (this.logLevel === "debug") {
+          console.warn("Crudify: Invalid JWT - missing required fields (sub or exp)");
+        }
+        return false;
+      }
+
+      // Verificar que sea un access token (no refresh token)
+      if (payload.type && payload.type !== "access") {
+        if (this.logLevel === "debug") {
+          console.warn("Crudify: Invalid token type - expected 'access', got:", payload.type);
+        }
+        return false;
+      }
+
+      // Verificar expiración (sin buffer, expiración real)
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp <= now) {
+        if (this.logLevel === "debug") {
+          const expiredAgo = now - payload.exp;
+          console.warn(`Crudify: Token expired ${expiredAgo} seconds ago`);
+        }
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      if (this.logLevel === "debug") {
+        console.warn("Crudify: Failed to validate token", this.sanitizeForLogging(error));
+      }
+      return false;
+    }
+  };
+
+  /**
+   * Verificar si hay una sesión válida
+   * Ahora valida estructura JWT y expiración, no solo existencia
+   */
+  public isLogin = (): boolean => this.isAccessTokenValid();
 
   /**
    * Verificar si hay un refresh de token en progreso
