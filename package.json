@@ -1,7 +1,7 @@
 {
   "name": "@nocios/crudify-browser",
-  "version": "1.0.82",
-  "description": "Browser-specific Lightweight JS SDK for Crudify GraphQL API",
+  "version": "4.0.8",
+  "description": "Browser-specific Lightweight JS SDK for Crudify GraphQL API with Refresh Token Pattern support",
   "author": "Nocios",
   "license": "MIT",
   "main": "dist/index.js",
@@ -16,8 +16,11 @@
   },
   "scripts": {
     "build": "tsup",
-    "start": "vite example",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
@@ -34,7 +37,11 @@
     "api",
     "typescript",
     "sdk",
-    "browser"
+    "browser",
+    "refresh-token",
+    "jwt",
+    "authentication",
+    "security"
   ],
   "files": [
     "dist",
@@ -45,9 +52,13 @@
     "access": "public"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "happy-dom": "^19.0.2",
     "ts-node": "^10.9.2",
     "tsup": "^8.4.0",
     "typescript": "^5.8.2",
-    "vite": "^6.3.5"
+    "vitest": "^3.2.4"
   }
 }

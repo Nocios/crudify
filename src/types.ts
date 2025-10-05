@@ -11,9 +11,9 @@ export type CrudifyLogLevel = "none" | "debug";
 export enum NociosError {
   // Authentication errors
   InvalidCredentials = "INVALID_CREDENTIALS",
-  InvalidApiKey = "INVALID_API_KEY", 
+  InvalidApiKey = "INVALID_API_KEY",
   Unauthorized = "UNAUTHORIZED",
-  
+
   // User/Subscriber errors
   SubscriberNotFound = "SUBSCRIBER_NOT_FOUND",
   SubscriberNotActive = "SUBSCRIBER_NOT_ACTIVE",
@@ -21,28 +21,28 @@ export enum NociosError {
   UserNotActive = "USER_NOT_ACTIVE",
   ProfileNotFound = "PROFILE_NOT_FOUND",
   ProfileNotActive = "PROFILE_NOT_ACTIVE",
-  
+
   // Configuration errors
   InvalidConfiguration = "INVALID_CONFIGURATION",
-  
+
   // Request errors
   BadRequest = "BAD_REQUEST",
   NotFound = "NOT_FOUND",
   InUse = "IN_USE",
   NoPermission = "NO_PERMISSION",
-  
+
   // System errors
   InternalServerError = "INTERNAL_SERVER_ERROR",
   DatabaseConnectionError = "DATABASE_CONNECTION_ERROR",
-  
+
   // Validation errors
   FieldError = "FIELD_ERROR",
-  
+
   // Operation errors
   UnknownOperation = "UNKNOWN_OPERATION",
   NotExecuted = "NOT_EXECUTED",
   NoActive = "NO_ACTIVE",
-  ItemNotFound = "ITEM_NOT_FOUND"
+  ItemNotFound = "ITEM_NOT_FOUND",
 }
 
 /**
@@ -110,6 +110,32 @@ export type CrudifyResponseInterceptor = (response: RawGraphQLResponse) => RawGr
  * This is for documentation and understanding; tsup will generate the actual
  * module interface from the Crudify class implementation.
  */
+/**
+ * ✅ MEJORADO: Información de tokens para refresh token pattern con validación
+ */
+export type CrudifyTokenData = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  refreshExpiresAt: number;
+  isExpired: boolean;
+  isRefreshExpired: boolean;
+  // ✅ NUEVO: Campos de validación
+  isValid: boolean;
+  expiresIn: number;
+  willExpireSoon: boolean;
+};
+
+/**
+ * ✅ NUEVO: Parámetros para configurar tokens manualmente
+ */
+export type CrudifyTokenConfig = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  refreshExpiresAt?: number;
+};
+
 export interface CrudifyPublicAPI {
   getLogLevel: () => CrudifyLogLevel;
   config: (env: CrudifyEnvType) => void;
@@ -117,6 +143,12 @@ export interface CrudifyPublicAPI {
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
+
+  // ✅ NUEVO: Métodos para refresh token pattern
+  refreshAccessToken: () => Promise<CrudifyResponse>;
+  setTokens: (tokens: CrudifyTokenConfig) => void;
+  getTokenData: () => CrudifyTokenData;
+
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructure: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructurePublic: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;

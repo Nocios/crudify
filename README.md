@@ -1,260 +1,395 @@
-# Welcome
+# @nocios/crudify-browser
 
-Welcome to **Crudify**, the lightweight JavaScript SDK from [Crudify.io](https://crudify.io) for interacting with the Crudify GraphQL API. This library lets you easily perform authentication, permission checks, and all CRUD operations (Create, Read, Update, Delete), as well as transactional batch operations against your serverless backend.
+[![npm version](https://badge.fury.io/js/%40nocios%2Fcrudify-browser.svg)](https://badge.fury.io/js/%40nocios%2Fcrudify-browser)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.1.3-3178c6.svg)](https://typescriptlang.org/)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-green.svg)](https://npmjs.com/package/@nocios/crudify-browser)
 
-For full documentation and advanced guides, visit our docs at [https://crudify.io/docs](https://crudify.io/docs).
+**Core API SDK for the Crudify ecosystem - Lightweight JavaScript SDK for browser environments with zero dependencies.**
 
-## Key Features
+SDK JavaScript ligero para acceder a la API GraphQL de Crudify desde navegadores. Incluye Refresh Token Pattern, operaciones CRUD completas y funcionalidades avanzadas de autenticación.
 
-- Simple, chainable API
-- Built-in authentication and token handling
-- Single-call GraphQL mutations and queries
-- Transaction support for batched operations
-- Configurable log levels (`none`, `debug`)
+## 🚀 Características
 
-**Result Statuses:**
+- **🔐 Autenticación Moderna**: Sistema completo con Refresh Token Pattern
+- **🔄 Renovación Automática**: Manejo transparente de tokens
+- **📊 CRUD Completo**: Create, Read, Update, Delete con transacciones
+- **🌐 Multi-Ambiente**: Configuración para dev, staging y production
+- **📱 TypeScript**: Completamente tipado
+- **⚡ Lightweight**: Sin dependencias externas
+- **🛡️ Seguro**: Manejo seguro de tokens y autenticación
 
-- **Success (no warnings):** operation completed without warnings; all fields processed correctly.
-- **Success (with warnings):** operation succeeded but some fields generated warnings; review the `fieldsWarning` array.
-- **Failure:** operation failed; check the `errors` object for validation or processing errors.
+## 📖 Documentation
 
----
+- 📋 **[Complete API Documentation](docs/overview.md)** - Comprehensive SDK reference and usage guide
+- 🔒 **[Security Guide](docs/security.md)** - Security features and best practices
+- 🏗️ **[Architecture](docs/architecture.md)** - SDK design and internal structure
+- 🔧 **[Migration Guide](docs/migration.md)** - Upgrade instructions between versions
+- 💡 **[Examples](docs/examples.md)** - Real-world implementation examples
 
-# Getting Started
-
-## Installation
-
-Install via npm:
+## 📦 Instalación
 
 ```bash
-npm install @nocios/crudify
+npm install @nocios/crudify-browser
 ```
 
-## Initialization
+Sin dependencias adicionales - completamente standalone.
 
-Import and initialize the SDK with your **public API key** (available at [https://crudify.io](https://crudify.io)) and optional log level:
+## 🏗️ Configuración Rápida
 
-```ts
-import crudify from "@nocios/crudify";
+```javascript
+import crudify from "@nocios/crudify-browser";
 
-// Initialize with your subscriber public key; logLevel defaults to 'debug'
-crudify.init("YOUR_PUBLIC_API_KEY", "info");
+// 1. Configurar ambiente
+crudify.config("dev"); // 'dev' | 'stg' | 'api' | 'prod'
+
+// 2. Inicializar
+await crudify.init("tu_public_api_key_aqui");
 ```
 
-# Authentication & Permission
+### Variables de Entorno
 
-## `login(email: string, password: string): Promise<ResponseType>`
+```javascript
+const apiKey = process.env.REACT_APP_CRUDIFY_PUBLIC_API_KEY;
+const environment = process.env.REACT_APP_CRUDIFY_ENV || "dev";
 
-**Description:**  
-Authenticate a user and store the returned JWT token internally.
-
-```ts
-const result = await crudify.login("user@example.com", "SuperSecret123!");
+crudify.config(environment);
+await crudify.init(apiKey);
 ```
 
-**Sample Response (Success):**
+## 🔐 Autenticación
 
-```json
-{ "success": true }
+### Login
+
+```javascript
+// Login con email o username
+const result = await crudify.login("user@example.com", "password");
+
+if (result.success) {
+  console.log("Login exitoso:", result.data);
+  // Token automáticamente almacenado
+} else {
+  console.error("Error:", result.errors);
+}
+
+// Verificar estado
+const isLoggedIn = crudify.isLogin(); // true/false
 ```
 
-**Sample Response (Error):**
+### Refresh Token Pattern
 
-```json
-{ "success": false, "errors": [{ "message": "Invalid credentials" }] }
+```javascript
+// Renovación manual
+const refreshResult = await crudify.refreshAccessToken();
+
+// Configurar tokens manualmente (restaurar sesión)
+crudify.setTokens({
+  accessToken: "stored_access_token",
+  refreshToken: "stored_refresh_token",
+  expiresAt: 1640995200000,
+});
+
+// Obtener información de tokens
+const tokenData = crudify.getTokenData();
+console.log("Tokens:", tokenData);
 ```
 
----
+### Logout
 
-## `getPermissions(): Promise<ResponseType>`
-
-**Description:**  
-Fetch the current user’s permissions as an array of modules, each with its list of policy objects.
-
-```ts
-const perm = await crudify.getPermissions();
-console.log(perm.data);
+```javascript
+await crudify.logout(); // Limpia todos los tokens
 ```
 
-**Sample Response:**
+## 📊 Operaciones CRUD
 
-```json
-{
-  "success": true,
-  "data": [
+### Create - Crear
+
+```javascript
+// Crear con autenticación de usuario
+const result = await crudify.createItem("products", {
+  name: "Nuevo Producto",
+  price: 99.99,
+  category: "electronics",
+});
+
+// Crear público (solo con API key)
+const publicResult = await crudify.createItemPublic("contacts", {
+  name: "Juan Pérez",
+  email: "juan@example.com",
+});
+```
+
+### Read - Leer
+
+```javascript
+// Leer un item específico
+const item = await crudify.readItem("products", {
+  _id: "60f7b1234567890123456789",
+});
+
+// Leer múltiples con filtros y paginación
+const items = await crudify.readItems("products", {
+  filter: {
+    category: "electronics",
+    price: { $gte: 50, $lte: 200 },
+  },
+  pagination: {
+    page: 1,
+    limit: 20, // 20 items por página
+  },
+  sort: { createdAt: -1 },
+});
+
+if (items.success) {
+  console.log("Productos:", items.data.items);
+  console.log("Total:", items.data.total);
+}
+
+// ⚡ Obtener TODOS los resultados SIN paginación
+const allItems = await crudify.readItems("products", {
+  filter: { category: "electronics" },
+  pagination: {
+    limit: 0, // ✅ limit: 0 retorna TODOS los resultados
+  },
+  sort: { name: 1 },
+});
+
+// Leer con referencias pobladas (populate)
+const orders = await crudify.readItems("orders", {
+  filter: { status: "pending" },
+  populate: [
     {
-      "moduleKey": "profiles",
-      "policies": [
-        { "name": "Read", "action": "read", "conditions": "*" },
-        { "name": "Create", "action": "create", "conditions": "*" },
-        { "name": "Update", "action": "update", "conditions": "*" },
-        { "name": "Delete", "action": "delete", "conditions": "*" }
-      ]
+      path: "customerId", // Campo a poblar
+      moduleKey: "customers", // Módulo referenciado
+      select: ["name", "email"], // Campos a incluir
+    },
+    {
+      path: "productId",
+      moduleKey: "products",
+      select: "name price stock", // También acepta string
+    },
+  ],
+  pagination: { page: 1, limit: 10 },
+});
+```
+
+### Update - Actualizar
+
+```javascript
+const result = await crudify.updateItem("products", {
+  _id: "60f7b1234567890123456789",
+  price: 89.99,
+  discount: 10,
+});
+```
+
+### Delete - Eliminar
+
+```javascript
+const result = await crudify.deleteItem("products", "60f7b1234567890123456789");
+```
+
+## 🔄 Transacciones
+
+Ejecuta múltiples operaciones de forma atómica:
+
+```javascript
+const transactionResult = await crudify.transaction({
+  operations: [
+    {
+      operation: "create",
+      moduleKey: "orders",
+      data: { userId: "user123", total: 199.98 },
+    },
+    {
+      operation: "update",
+      moduleKey: "products",
+      data: { _id: "product1", stock: { $inc: -2 } },
+    },
+  ],
+});
+
+if (transactionResult.success) {
+  console.log("Transacción exitosa:", transactionResult.data);
+}
+```
+
+## 🔧 Utilidades
+
+### Permisos y Estructura
+
+```javascript
+// Obtener permisos del usuario
+const permissions = await crudify.getPermissions();
+
+// Obtener estructura del proyecto
+const structure = await crudify.getStructure();
+
+// Estructura pública (sin autenticación)
+const publicStructure = await crudify.getStructurePublic();
+```
+
+### Subida de Archivos
+
+```javascript
+// Generar URL firmada
+const signedUrl = await crudify.generateSignedUrl({
+  fileName: "image.jpg",
+  contentType: "image/jpeg",
+});
+
+if (signedUrl.success) {
+  const { uploadUrl, fileUrl } = signedUrl.data;
+
+  // Usar uploadUrl para subir archivo
+  // Usar fileUrl como referencia pública
+}
+```
+
+### Interceptores de Respuesta
+
+```javascript
+// Procesar todas las respuestas
+crudify.setResponseInterceptor((response) => {
+  console.log("Response:", response);
+
+  // Transformar o agregar datos
+  response.metadata = { timestamp: Date.now() };
+
+  return response;
+});
+
+// Remover interceptor
+crudify.setResponseInterceptor(null);
+```
+
+## 🚫 Cancelación de Requests
+
+```javascript
+const controller = new AbortController();
+
+// Cancelar después de 5 segundos
+setTimeout(() => controller.abort(), 5000);
+
+try {
+  const result = await crudify.readItems(
+    "products",
+    {},
+    {
+      signal: controller.signal,
     }
-    // ...
-  ]
-}
-```
-
----
-
-# CRUD Operations
-
-All operations accept a `moduleKey` string (the name of your resource/module) and a `data` object. Responses follow the same pattern:
-
-```ts
-interface ResponseType {
-  success: boolean;
-  data?: any;
-  errors?: any;
-}
-```
-
-## Create Item
-
-**Method:** `createItem(moduleKey: string, data: any): Promise<ResponseType>`
-
-**Description:**  
-Create a new record in the given module.
-
-```ts
-const newUser = { name: "Alice", email: "alice@example.com" };
-const res = await crudify.createItem("users", newUser);
-```
-
-**Sample Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "_id": "5f8f8c44b54764421b7156c7",
-    "name": "Alice",
-    "email": "alice@example.com"
+  );
+} catch (error) {
+  if (error.name === "AbortError") {
+    console.log("Request cancelado");
   }
 }
 ```
 
----
+## 📱 TypeScript
 
-## Read Single Item
+Tipos completos incluidos:
 
-**Method:** `readItem(moduleKey: string, data: { _id: string }): Promise<ResponseType>`
+```typescript
+import crudify, { CrudifyResponse, CrudifyTokenData, CrudifyEnvType, NociosError } from "@nocios/crudify-browser";
 
-**Description:**  
-Fetch a single record by its `_id`.
+const response: CrudifyResponse = await crudify.readItems("products", {});
+const tokens: CrudifyTokenData = crudify.getTokenData();
 
-```ts
-const res = await crudify.readItem("users", { _id: "5f8f8c44b54764421b7156c7" });
-```
-
----
-
-## Read Multiple Items
-
-**Method:** `readItems(moduleKey: string, data: any): Promise<ResponseType>`
-
-**Description:**  
-Query multiple records with optional filters, sort, pagination, etc.
-
-```ts
-// Example: fetch all users
-const res = await crudify.readItems("users", {});
-```
-
----
-
-## Update Item
-
-**Method:** `updateItem(moduleKey: string, data: any): Promise<ResponseType>`
-
-**Description:**  
-Update fields of an existing record. Must include `_id` in `data`.
-
-```ts
-const update = { _id: "...", name: "Alice Smith" };
-const res = await crudify.updateItem("users", update);
-```
-
----
-
-## Delete Item
-
-**Method:** `deleteItem(moduleKey: string, data: { _id: string }): Promise<ResponseType>`
-
-**Description:**  
-Remove a record by its `_id`.
-
-```ts
-const res = await crudify.deleteItem("users", { _id: "..." });
-```
-
----
-
-# Transaction
-
-## `transaction(data: any[]): Promise<ResponseType>`
-
-**Description:**  
-Execute multiple operations in a single atomic batch. Each item in the `data` array must be an object with:
-
-- `operation`: one of `'create' | 'update' | 'delete'`
-- `moduleKey`: the target module name
-- `data`: payload for the operation
-
-```ts
-const batch = [
-  { operation: "create", moduleKey: "users", data: { name: "Carol" } },
-  { operation: "update", moduleKey": "users", data: { _id: "...", name: "Carol Lee" } },
-  { operation: "delete", moduleKey: "users", data: { _id: "..." } },
-];
-const res = await crudify.transaction(batch);
-```
-
----
-
-# Field Validations
-
-Below is a list of common field validation rules enforced by the SDK (via server-side Zod schemas). Each rule returns a specific error code when validation fails.
-
-| Rule             | Description                                                     | Error Code                           |
-| ---------------- | --------------------------------------------------------------- | ------------------------------------ |
-| `required`       | Field must be present and non-empty                             | `REQUIRED`                           |
-| `email`          | Field must be a valid email address                             | `INVALID_EMAIL`                      |
-| `noSpace`        | Field must not contain whitespace                               | `NO_SPACES`                          |
-| `min[x]`         | Numeric field must be ≥ x                                       | `MIN_x`                              |
-| `max[x]`         | Numeric field must be ≤ x                                       | `MAX_x`                              |
-| `minlength[x]`   | String length must be ≥ x characters                            | `MIN_x_CHARACTERS`                   |
-| `maxlength[x]`   | String length must be ≤ x characters                            | `MAX_x_CHARACTERS`                   |
-| `objectId`       | Must be a valid MongoDB ObjectId                                | `INVALID_OBJECT_ID`                  |
-| `in[...]`        | String must be one of the provided values                       | `INVALID_VALUE_MUST_BE_ONE_OF_[...]` |
-| `foreign:Module` | Must reference an existing non-deleted item in `Module`         | `FOREIGN_KEY_NOT_FOUND_<FIELD>`      |
-| `unique:Module`  | Value must be unique within `Module` (excluding current record) | `DUPLICATE_<FIELD>`                  |
-| `optional`       | Field is not required                                           | (no error on missing field)          |
-
----
-
-# Operation Results Examples
-
-### Create Item
-
-**Successful (no warnings):**
-
-```js
-{
-  success: true,
-  data: { /* created record */ },
-  fieldsWarning: null
+// Manejo de errores tipado
+if (!response.success && response.errorCode === NociosError.Unauthorized) {
+  console.log("No autorizado");
 }
 ```
 
+## 🛠️ Ejemplo Práctico
+
+```javascript
+import crudify from "@nocios/crudify-browser";
+
+class ProductAPI {
+  async init() {
+    crudify.config(process.env.REACT_APP_CRUDIFY_ENV || "prod");
+    await crudify.init(process.env.REACT_APP_CRUDIFY_PUBLIC_API_KEY);
+  }
+
+  async login(email, password) {
+    return await crudify.login(email, password);
+  }
+
+  async getProducts(category = null, page = 1) {
+    const filter = category ? { category } : {};
+
+    return await crudify.readItems("products", {
+      filter,
+      pagination: {
+        page,
+        limit: 20,
+      },
+      sort: { name: 1 },
+    });
+  }
+
+  async createProduct(productData) {
+    return await crudify.createItem("products", productData);
+  }
+
+  async updateStock(productId, newStock) {
+    return await crudify.updateItem("products", {
+      _id: productId,
+      stock: newStock,
+    });
+  }
+}
+
+// Uso
+const api = new ProductAPI();
+await api.init();
+
+const loginResult = await api.login("user@example.com", "password");
+if (loginResult.success) {
+  const products = await api.getProducts("electronics");
+  console.log("Productos:", products.data);
+}
+```
+
+## 🔒 Características de Seguridad
+
+- ✅ Renovación automática de tokens (2 min antes de expirar)
+- ✅ Reintento automático en errores de autorización
+- ✅ Almacenamiento seguro de tokens
+- ✅ Configuración multi-ambiente
+- ✅ Manejo de errores estructurado
+
+## 🔧 Configuración Avanzada
+
+```javascript
+// Configuración con logging
+await crudify.init("api_key", "debug"); // 'none' | 'debug'
+
+// Verificar nivel de logging
+console.log(crudify.getLogLevel());
+
+// Limpiar recursos (Node.js)
+await crudify.shutdown();
+```
+
+## 🚀 Renovación Automática
+
+La librería maneja automáticamente:
+
+- **Renovación preventiva**: Renueva tokens 2 minutos antes de expirar
+- **Recuperación de errores**: Auto-renueva en errores 401 y reintenta operación
+- **Verificación de estado**: Métodos para verificar expiración de tokens
+
+## 📚 Documentación Completa
+
+Para ejemplos avanzados, configuración detallada y troubleshooting, consulta [README_DEPTH.md](./README_DEPTH.md).
+
+## 📄 Licencia
+
+MIT © [Nocios](https://github.com/nocios)
+
 ---
 
-# FAQ
-
-**Q:** _What is **`publicApiKey`** vs. **`apiKey`**?_  
-**A:** `publicApiKey` is your subscriber-level credential, set via `init()`. Internally the library uses a fixed GraphQL API key (`apiKey`) to sign requests; you never need to configure it manually.
-
----
-
-For more details and advanced usage, visit our docs at [https://crudify.io/docs](https://crudify.io/docs).
+**¿Necesitas ayuda?** Consulta [README_DEPTH.md](./README_DEPTH.md) para documentación completa.

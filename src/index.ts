@@ -9,6 +9,8 @@ import {
   CrudifyResponseInterceptor,
   RawGraphQLResponse,
   NociosError,
+  CrudifyTokenData,
+  CrudifyTokenConfig,
 } from "./types";
 
 export {
@@ -20,6 +22,8 @@ export {
   type CrudifyResponse,
   type RawGraphQLResponse,
   type CrudifyResponseInterceptor,
+  type CrudifyTokenData,
+  type CrudifyTokenConfig,
   NociosError,
 };
 
