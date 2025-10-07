@@ -132,6 +132,16 @@ query MyQuery($data: AWSJSON) {
 }
 `;
 
+const queryGetTranslation = `
+query MyQuery($data: AWSJSON) {
+  response:getTranslation(data: $data) {
+    data
+    status
+    fieldsWarning
+  }
+}
+`;
+
 const dataMasters = {
   dev: { ApiMetadata: "https://auth.dev.crudify.io", ApiKeyMetadata: "da2-pl3xidupjnfwjiykpbp75gx344" },
   stg: { ApiMetadata: "https://auth.stg.crudify.io", ApiKeyMetadata: "da2-hooybwpxirfozegx3v4f3kaelq" },
@@ -937,6 +947,11 @@ class Crudify implements CrudifyPublicAPI {
 
   public getStructurePublic = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
     return this.performCrudOperationPublic(queryGetStructure, {}, options);
+  };
+
+  public getTranslation = async (sections?: string[], options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
+    const data = sections ? { sections } : {};
+    return this.performCrudOperationPublic(queryGetTranslation, { data: JSON.stringify(data) }, options);
   };
 
   public createItem = async (moduleKey: string, data: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {

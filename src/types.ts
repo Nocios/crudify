@@ -152,6 +152,7 @@ export interface CrudifyPublicAPI {
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructure: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructurePublic: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  getTranslation: (sections?: string[], options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   createItem: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   createItemPublic: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   readItem: (moduleKey: string, filter: { _id: string } | object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
