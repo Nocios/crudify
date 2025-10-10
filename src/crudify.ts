@@ -19,6 +19,8 @@ query Init($apiKey: String!) {
   response:init(apiKey: $apiKey) {
     apiEndpoint
     apiKeyEndpoint
+    apiEndpointAdmin
+    apiKeyEndpointAdmin
   }
 }`;
 
