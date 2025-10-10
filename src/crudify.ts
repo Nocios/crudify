@@ -169,6 +169,10 @@ class Crudify implements CrudifyPublicAPI {
   private refreshPromise: Promise<CrudifyResponse> | null = null;
   private isRefreshing: boolean = false;
 
+  // ✅ P0 FIX: Initialization guard to prevent multiple init() calls
+  private isInitialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
+
   // ✅ FASE 3.5: Callback para notificar cuando tokens se invalidan
   private onTokensInvalidated: (() => void) | null = null;
 
@@ -185,6 +189,42 @@ class Crudify implements CrudifyPublicAPI {
   };
 
   public init = async (publicApiKey: string, logLevel?: CrudifyLogLevel): Promise<void> => {
+    // ✅ P0 FIX: Guard - Already initialized
+    if (this.isInitialized) {
+      if ((logLevel || this.logLevel) === "debug") {
+        console.log("🔒 Crudify: Already initialized, skipping duplicate init() call");
+      }
+      return;
+    }
+
+    // ✅ P0 FIX: Guard - Initialization in progress
+    if (this.initPromise) {
+      if ((logLevel || this.logLevel) === "debug") {
+        console.log("⏳ Crudify: Initialization in progress, waiting for existing promise...");
+      }
+      return this.initPromise;
+    }
+
+    // ✅ P0 FIX: Create initialization promise
+    this.initPromise = this.performInit(publicApiKey, logLevel);
+
+    try {
+      await this.initPromise;
+      this.isInitialized = true;
+      if (this.logLevel === "debug") {
+        console.log("✅ Crudify: Initialization completed successfully");
+      }
+    } catch (error) {
+      // Reset state on error so init can be retried
+      this.isInitialized = false;
+      throw error;
+    } finally {
+      this.initPromise = null;
+    }
+  };
+
+  // ✅ P0 FIX: Extracted actual initialization logic
+  private performInit = async (publicApiKey: string, logLevel?: CrudifyLogLevel): Promise<void> => {
     this.logLevel = logLevel || "none";
     this.publicApiKey = publicApiKey;
     this.token = "";
