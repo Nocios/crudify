@@ -165,6 +165,8 @@ class Crudify implements CrudifyPublicAPI {
   private logLevel: CrudifyLogLevel = "none";
   private apiKey: string = "";
   private endpoint: string = "";
+  private apiEndpointAdmin: string = "";
+  private apiKeyEndpointAdmin: string = "";
   private responseInterceptor: CrudifyResponseInterceptor | null = null;
 
   // Race condition prevention
@@ -173,7 +175,7 @@ class Crudify implements CrudifyPublicAPI {
 
   // Initialization guard to prevent multiple init() calls
   private isInitialized: boolean = false;
-  private initPromise: Promise<void> | null = null;
+  private initPromise: Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }> | null = null;
 
   // ✅ FASE 3.5: Callback para notificar cuando tokens se invalidan
   private onTokensInvalidated: (() => void) | null = null;
@@ -190,13 +192,16 @@ class Crudify implements CrudifyPublicAPI {
     Crudify.ApiKeyMetadata = dataMasters[selectedEnv]?.ApiKeyMetadata || dataMasters.api.ApiKeyMetadata;
   };
 
-  public init = async (publicApiKey: string, logLevel?: CrudifyLogLevel): Promise<void> => {
+  public init = async (
+    publicApiKey: string,
+    logLevel?: CrudifyLogLevel
+  ): Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }> => {
     // Guard: Already initialized
     if (this.isInitialized) {
       if ((logLevel || this.logLevel) === "debug") {
         console.log("Crudify: Already initialized, skipping duplicate init() call");
       }
-      return;
+      return { apiEndpointAdmin: this.apiEndpointAdmin, apiKeyEndpointAdmin: this.apiKeyEndpointAdmin };
     }
 
     // Guard: Initialization in progress
@@ -209,9 +214,10 @@ class Crudify implements CrudifyPublicAPI {
     this.initPromise = this.performInit(publicApiKey, logLevel);
 
     try {
-      await this.initPromise;
+      const result = await this.initPromise;
       this.isInitialized = true;
       if (this.logLevel === "debug") console.log("Crudify: Initialization completed successfully");
+      return result;
     } catch (error) {
       // Reset state on error so init can be retried
       this.isInitialized = false;
@@ -222,7 +228,10 @@ class Crudify implements CrudifyPublicAPI {
   };
 
   // Extracted actual initialization logic
-  private performInit = async (publicApiKey: string, logLevel?: CrudifyLogLevel): Promise<void> => {
+  private performInit = async (
+    publicApiKey: string,
+    logLevel?: CrudifyLogLevel
+  ): Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }> => {
     this.logLevel = logLevel || "none";
     this.publicApiKey = publicApiKey;
     this.token = "";
@@ -247,6 +256,13 @@ class Crudify implements CrudifyPublicAPI {
       const { response: initResponse } = data.data;
       this.endpoint = initResponse.apiEndpoint;
       this.apiKey = initResponse.apiKeyEndpoint;
+      this.apiEndpointAdmin = initResponse.apiEndpointAdmin || "";
+      this.apiKeyEndpointAdmin = initResponse.apiKeyEndpointAdmin || "";
+
+      return {
+        apiEndpointAdmin: this.apiEndpointAdmin,
+        apiKeyEndpointAdmin: this.apiKeyEndpointAdmin,
+      };
     } else {
       console.error("Crudify Init Error:", this.sanitizeForLogging(data.errors || data));
       throw new Error("Failed to initialize Crudify. Check API key or network.");

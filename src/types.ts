@@ -139,7 +139,7 @@ export type CrudifyTokenConfig = {
 export interface CrudifyPublicAPI {
   getLogLevel: () => CrudifyLogLevel;
   config: (env: CrudifyEnvType) => void;
-  init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<void>;
+  init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }>;
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
