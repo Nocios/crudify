@@ -19,6 +19,8 @@ query Init($apiKey: String!) {
   response:init(apiKey: $apiKey) {
     apiEndpoint
     apiKeyEndpoint
+    apiEndpointAdmin
+    apiKeyEndpointAdmin
   }
 }`;
 
@@ -132,6 +134,16 @@ query MyQuery($data: AWSJSON) {
 }
 `;
 
+const queryGetTranslation = `
+query MyQuery($data: AWSJSON) {
+  response:getTranslation(data: $data) {
+    data
+    status
+    fieldsWarning
+  }
+}
+`;
+
 const dataMasters = {
   dev: { ApiMetadata: "https://auth.dev.crudify.io", ApiKeyMetadata: "da2-pl3xidupjnfwjiykpbp75gx344" },
   stg: { ApiMetadata: "https://auth.stg.crudify.io", ApiKeyMetadata: "da2-hooybwpxirfozegx3v4f3kaelq" },
@@ -153,11 +165,17 @@ class Crudify implements CrudifyPublicAPI {
   private logLevel: CrudifyLogLevel = "none";
   private apiKey: string = "";
   private endpoint: string = "";
+  private apiEndpointAdmin: string = "";
+  private apiKeyEndpointAdmin: string = "";
   private responseInterceptor: CrudifyResponseInterceptor | null = null;
 
   // Race condition prevention
   private refreshPromise: Promise<CrudifyResponse> | null = null;
   private isRefreshing: boolean = false;
+
+  // Initialization guard to prevent multiple init() calls
+  private isInitialized: boolean = false;
+  private initPromise: Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }> | null = null;
 
   // ✅ FASE 3.5: Callback para notificar cuando tokens se invalidan
   private onTokensInvalidated: (() => void) | null = null;
@@ -174,7 +192,46 @@ class Crudify implements CrudifyPublicAPI {
     Crudify.ApiKeyMetadata = dataMasters[selectedEnv]?.ApiKeyMetadata || dataMasters.api.ApiKeyMetadata;
   };
 
-  public init = async (publicApiKey: string, logLevel?: CrudifyLogLevel): Promise<void> => {
+  public init = async (
+    publicApiKey: string,
+    logLevel?: CrudifyLogLevel
+  ): Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }> => {
+    // Guard: Already initialized
+    if (this.isInitialized) {
+      if ((logLevel || this.logLevel) === "debug") {
+        console.log("Crudify: Already initialized, skipping duplicate init() call");
+      }
+      return { apiEndpointAdmin: this.apiEndpointAdmin, apiKeyEndpointAdmin: this.apiKeyEndpointAdmin };
+    }
+
+    // Guard: Initialization in progress
+    if (this.initPromise) {
+      if ((logLevel || this.logLevel) === "debug") console.log("Crudify: Initialization in progress, waiting for existing promise...");
+      return this.initPromise;
+    }
+
+    // Create initialization promise
+    this.initPromise = this.performInit(publicApiKey, logLevel);
+
+    try {
+      const result = await this.initPromise;
+      this.isInitialized = true;
+      if (this.logLevel === "debug") console.log("Crudify: Initialization completed successfully");
+      return result;
+    } catch (error) {
+      // Reset state on error so init can be retried
+      this.isInitialized = false;
+      throw error;
+    } finally {
+      this.initPromise = null;
+    }
+  };
+
+  // Extracted actual initialization logic
+  private performInit = async (
+    publicApiKey: string,
+    logLevel?: CrudifyLogLevel
+  ): Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }> => {
     this.logLevel = logLevel || "none";
     this.publicApiKey = publicApiKey;
     this.token = "";
@@ -199,6 +256,13 @@ class Crudify implements CrudifyPublicAPI {
       const { response: initResponse } = data.data;
       this.endpoint = initResponse.apiEndpoint;
       this.apiKey = initResponse.apiKeyEndpoint;
+      this.apiEndpointAdmin = initResponse.apiEndpointAdmin || "";
+      this.apiKeyEndpointAdmin = initResponse.apiKeyEndpointAdmin || "";
+
+      return {
+        apiEndpointAdmin: this.apiEndpointAdmin,
+        apiKeyEndpointAdmin: this.apiKeyEndpointAdmin,
+      };
     } else {
       console.error("Crudify Init Error:", this.sanitizeForLogging(data.errors || data));
       throw new Error("Failed to initialize Crudify. Check API key or network.");
@@ -241,11 +305,7 @@ class Crudify implements CrudifyPublicAPI {
       }
 
       // Verificar recursivamente objetos anidados
-      if (obj[key] && typeof obj[key] === "object") {
-        if (this.containsDangerousProperties(obj[key], depth + 1)) {
-          return true;
-        }
-      }
+      if (obj[key] && typeof obj[key] === "object") if (this.containsDangerousProperties(obj[key], depth + 1)) return true;
     }
 
     return false;
@@ -262,9 +322,7 @@ class Crudify implements CrudifyPublicAPI {
       return data;
     }
 
-    if (Array.isArray(data)) {
-      return data.map((item) => this.sanitizeForLogging(item));
-    }
+    if (Array.isArray(data)) return data.map((item) => this.sanitizeForLogging(item));
 
     const sanitized: any = {};
     const sensitiveKeys = [
@@ -290,13 +348,9 @@ class Crudify implements CrudifyPublicAPI {
       const keyLower = key.toLowerCase();
       const isSensitive = sensitiveKeys.some((sensitiveKey) => keyLower.includes(sensitiveKey));
 
-      if (isSensitive && typeof value === "string" && value.length > 6) {
-        sanitized[key] = value.substring(0, 6) + "******";
-      } else if (value && typeof value === "object") {
-        sanitized[key] = this.sanitizeForLogging(value);
-      } else {
-        sanitized[key] = value;
-      }
+      if (isSensitive && typeof value === "string" && value.length > 6) sanitized[key] = value.substring(0, 6) + "******";
+      else if (value && typeof value === "object") sanitized[key] = this.sanitizeForLogging(value);
+      else sanitized[key] = value;
     }
 
     return sanitized;
@@ -449,9 +503,8 @@ class Crudify implements CrudifyPublicAPI {
 
       const refreshResult = await this.refreshAccessToken();
       if (!refreshResult.success) {
-        if (this.logLevel === "debug") {
-          console.warn("Crudify: Token refresh failed, clearing tokens");
-        }
+        if (this.logLevel === "debug") console.warn("Crudify: Token refresh failed, clearing tokens");
+
         // Si el refresh falló, limpiar tokens para forzar re-login
         this.clearTokensAndRefreshState();
 
@@ -485,7 +538,7 @@ class Crudify implements CrudifyPublicAPI {
       options?.signal
     );
 
-    // ✅ NUEVO: Manejo de errores de autenticación
+    // Manejo de errores de autenticación
     if (rawResponse.errors) {
       const hasAuthError = rawResponse.errors.some(
         (error: any) =>
@@ -640,22 +693,14 @@ class Crudify implements CrudifyPublicAPI {
     }
 
     // Validaciones iniciales
-    if (!this.refreshToken) {
-      return {
-        success: false,
-        errors: { _refresh: ["NO_REFRESH_TOKEN_AVAILABLE"] },
-      };
-    }
+    if (!this.refreshToken) return { success: false, errors: { _refresh: ["NO_REFRESH_TOKEN_AVAILABLE"] } };
 
-    if (!this.endpoint || !this.apiKey) {
-      throw new Error("Crudify: Not initialized. Call init() first.");
-    }
+    if (!this.endpoint || !this.apiKey) throw new Error("Crudify: Not initialized. Call init() first.");
 
     // Si el token no está realmente expirado, no hacer nada
     if (!this.isTokenExpired()) {
-      if (this.logLevel === "debug") {
-        console.log("Crudify: Token is not expired, skipping refresh");
-      }
+      if (this.logLevel === "debug") console.log("Crudify: Token is not expired, skipping refresh");
+
       return {
         success: true,
         data: {
@@ -681,9 +726,7 @@ class Crudify implements CrudifyPublicAPI {
 
   private async performTokenRefresh(): Promise<CrudifyResponse> {
     try {
-      if (this.logLevel === "debug") {
-        console.log("Crudify: Starting token refresh process");
-      }
+      if (this.logLevel === "debug") console.log("Crudify: Starting token refresh process");
 
       const rawResponse = await this.executeQuery(mutationRefreshToken, { refreshToken: this.refreshToken }, { "x-api-key": this.apiKey });
 
@@ -705,12 +748,11 @@ class Crudify implements CrudifyPublicAPI {
         this.tokenExpiresAt = newTokenExpiresAt;
         this.refreshExpiresAt = newRefreshExpiresAt;
 
-        if (this.logLevel === "debug") {
+        if (this.logLevel === "debug")
           console.info("Crudify Token refreshed successfully", {
             accessExpires: new Date(this.tokenExpiresAt),
             refreshExpires: new Date(this.refreshExpiresAt),
           });
-        }
 
         return {
           success: true,
@@ -728,22 +770,17 @@ class Crudify implements CrudifyPublicAPI {
 
       return this.adaptToPublicResponse(internalResponse);
     } catch (error) {
-      if (this.logLevel === "debug") {
-        console.error("Crudify Token refresh failed:", this.sanitizeForLogging(error));
-      }
+      if (this.logLevel === "debug") console.error("Crudify Token refresh failed:", this.sanitizeForLogging(error));
 
       // En caso de error, limpiar tokens
       this.clearTokensAndRefreshState();
 
-      return {
-        success: false,
-        errors: { _refresh: ["TOKEN_REFRESH_FAILED"] },
-      };
+      return { success: false, errors: { _refresh: ["TOKEN_REFRESH_FAILED"] } };
     }
   }
 
   /**
-   * ✅ FASE 2.3: Verificar si el access token necesita renovación con buffer dinámico
+   * Verificar si el access token necesita renovación con buffer dinámico
    * @param urgencyLevel - 'critical' (30s), 'high' (2min), 'normal' (5min)
    */
   private isTokenExpired = (urgencyLevel: "critical" | "high" | "normal" = "high"): boolean => {
@@ -777,24 +814,15 @@ class Crudify implements CrudifyPublicAPI {
    */
   public setTokens = (tokens: CrudifyTokenConfig): void => {
     // Primero, configurar todos los campos temporalmente
-    if (tokens.accessToken) {
-      this.token = tokens.accessToken;
-    }
-    if (tokens.refreshToken) {
-      this.refreshToken = tokens.refreshToken;
-    }
-    if (tokens.expiresAt) {
-      this.tokenExpiresAt = tokens.expiresAt;
-    }
-    if (tokens.refreshExpiresAt) {
-      this.refreshExpiresAt = tokens.refreshExpiresAt;
-    }
+    if (tokens.accessToken) this.token = tokens.accessToken;
+    if (tokens.refreshToken) this.refreshToken = tokens.refreshToken;
+    if (tokens.expiresAt) this.tokenExpiresAt = tokens.expiresAt;
+    if (tokens.refreshExpiresAt) this.refreshExpiresAt = tokens.refreshExpiresAt;
 
     // ✅ NUEVO: Validar el access token después de configurarlo
     if (this.token && !this.isAccessTokenValid()) {
-      if (this.logLevel === "debug") {
-        console.warn("Crudify: Attempted to set invalid access token, clearing tokens");
-      }
+      if (this.logLevel === "debug") console.warn("Crudify: Attempted to set invalid access token, clearing tokens");
+
       // Si el token es inválido, limpiar todo
       this.clearTokensAndRefreshState();
     }
@@ -853,17 +881,14 @@ class Crudify implements CrudifyPublicAPI {
 
       // Verificar campos obligatorios del JWT
       if (!payload.sub || !payload.exp) {
-        if (this.logLevel === "debug") {
-          console.warn("Crudify: Invalid JWT - missing required fields (sub or exp)");
-        }
+        if (this.logLevel === "debug") console.warn("Crudify: Invalid JWT - missing required fields (sub or exp)");
+
         return false;
       }
 
       // Verificar que sea un access token (no refresh token)
       if (payload.type && payload.type !== "access") {
-        if (this.logLevel === "debug") {
-          console.warn("Crudify: Invalid token type - expected 'access', got:", payload.type);
-        }
+        if (this.logLevel === "debug") console.warn("Crudify: Invalid token type - expected 'access', got:", payload.type);
         return false;
       }
 
@@ -879,9 +904,7 @@ class Crudify implements CrudifyPublicAPI {
 
       return true;
     } catch (error) {
-      if (this.logLevel === "debug") {
-        console.warn("Crudify: Failed to validate token", this.sanitizeForLogging(error));
-      }
+      if (this.logLevel === "debug") console.warn("Crudify: Failed to validate token", this.sanitizeForLogging(error));
       return false;
     }
   };
@@ -898,7 +921,7 @@ class Crudify implements CrudifyPublicAPI {
   public isTokenRefreshInProgress = (): boolean => this.isRefreshing;
 
   /**
-   * ✅ FASE 3.5: Configurar callback de invalidación de tokens
+   * Configurar callback de invalidación de tokens
    */
   public setTokenInvalidationCallback = (callback: (() => void) | null): void => {
     this.onTokensInvalidated = callback;
@@ -917,11 +940,9 @@ class Crudify implements CrudifyPublicAPI {
     this.isRefreshing = false;
     this.refreshPromise = null;
 
-    if (this.logLevel === "debug") {
-      console.log("Crudify: Tokens and refresh state cleared");
-    }
+    if (this.logLevel === "debug") console.log("Crudify: Tokens and refresh state cleared");
 
-    // ✅ FASE 3.5: Notificar que tokens fueron invalidados
+    // Notificar que tokens fueron invalidados
     if (this.onTokensInvalidated) {
       this.onTokensInvalidated();
     }
@@ -937,6 +958,11 @@ class Crudify implements CrudifyPublicAPI {
 
   public getStructurePublic = async (options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
     return this.performCrudOperationPublic(queryGetStructure, {}, options);
+  };
+
+  public getTranslation = async (sections?: string[], options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {
+    const data = sections ? { sections } : {};
+    return this.performCrudOperationPublic(queryGetTranslation, { data: JSON.stringify(data) }, options);
   };
 
   public createItem = async (moduleKey: string, data: object, options?: CrudifyRequestOptions): Promise<CrudifyResponse> => {

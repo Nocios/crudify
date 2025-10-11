@@ -139,7 +139,7 @@ export type CrudifyTokenConfig = {
 export interface CrudifyPublicAPI {
   getLogLevel: () => CrudifyLogLevel;
   config: (env: CrudifyEnvType) => void;
-  init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<void>;
+  init: (publicApiKey: string, logLevel?: CrudifyLogLevel) => Promise<{ apiEndpointAdmin?: string; apiKeyEndpointAdmin?: string }>;
   login: (identifier: string, password: string) => Promise<CrudifyResponse>;
   logout: () => Promise<CrudifyResponse>;
   isLogin: () => boolean;
@@ -152,6 +152,7 @@ export interface CrudifyPublicAPI {
   getPermissions: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructure: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   getStructurePublic: (options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
+  getTranslation: (sections?: string[], options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   createItem: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   createItemPublic: (moduleKey: string, data: object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
   readItem: (moduleKey: string, filter: { _id: string } | object, options?: CrudifyRequestOptions) => Promise<CrudifyResponse>;
